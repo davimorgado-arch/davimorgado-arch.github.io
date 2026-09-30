@@ -1,63 +1,92 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8">
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Política de Privacidade · Jorne</title>
+<title>Política de Privacidade — Jorne</title>
 <style>
-  :root { --terra:#C1552F; --dark:#26211D; }
-  * { box-sizing: border-box; }
-  body {
-    margin:0; background:#F5EFE6; color:#26211D;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    line-height:1.6; padding:32px 20px;
-  }
-  .wrap { max-width:720px; margin:0 auto; }
-  h1 { color:var(--terra); font-size:30px; margin:0 0 4px; }
-  h2 { font-size:19px; margin:28px 0 6px; }
-  .date { color:#8a8378; font-size:14px; margin-bottom:8px; }
-  a { color:var(--terra); }
+  :root { --terracota:#C1552F; --tinta:#2b2622; --suave:#6b6157; --creme:#F5EFE6; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--creme); color:var(--tinta);
+         font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  .wrap { max-width:740px; margin:0 auto; padding:40px 22px 80px; }
+  h1 { font-size:28px; margin:0 0 4px; }
+  h2 { font-size:19px; margin:34px 0 8px; color:var(--terracota); }
+  .sub { color:var(--suave); font-size:14px; margin-bottom:28px; }
+  a { color:var(--terracota); }
   ul { padding-left:20px; }
-  li { margin:4px 0; }
-  .foot { margin-top:36px; font-size:13px; color:#8a8378; border-top:1px solid #e2d9c9; padding-top:16px; }
+  li { margin:6px 0; }
+  .box { background:#fff; border:1px solid #e7ded1; border-radius:14px; padding:16px 18px; margin:18px 0; }
+  footer { margin-top:40px; color:var(--suave); font-size:13px; border-top:1px solid #e7ded1; padding-top:16px; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Política de Privacidade — Jorne</h1>
-  <p class="date">Última atualização: agosto de 2026</p>
+  <div class="sub">Última atualização: 30 de setembro de 2026</div>
 
-  <p>O Jorne é um app para organizar viagens em grupo. Esta política explica quais dados o app usa e por quê. O app é feito para uso entre amigos que combinam uma viagem, e coletamos apenas o necessário para essas funções.</p>
+  <p>O <strong>Jorne</strong> é um aplicativo para organizar viagens em grupo (itinerário,
+  localização ao vivo entre os membros, clima, câmbio, tradutor por imagem e resumos da viagem).
+  Esta política explica quais dados o app usa, por quê, e quais são os seus direitos.
+  O responsável pelo tratamento é <strong>Davi Morgado</strong>, desenvolvedor do app
+  (contato: <a href="mailto:davi.morgado@gmail.com">davi.morgado@gmail.com</a>).</p>
 
   <h2>Dados que o app usa</h2>
   <ul>
-    <li><strong>Identidade (Sign in with Apple):</strong> um identificador fornecido pela Apple para reconhecer você no grupo. Não recebemos sua senha.</li>
-    <li><strong>Perfil:</strong> nome, foto, telefone e e-mail que você mesmo preenche, exibidos para os membros da sua viagem.</li>
-    <li><strong>Localização:</strong> só é compartilhada com o seu grupo quando você ativa o compartilhamento, para mostrar sua posição no mapa da viagem. Você pode desativar a qualquer momento.</li>
-    <li><strong>Atividade (passos, distância e estimativa de calorias):</strong> lida do sensor do seu iPhone e usada no resumo do dia. Um resumo diário pode ser guardado para você e seu grupo consultarem depois.</li>
-    <li><strong>Conteúdo da viagem:</strong> itinerário, dias, atrações, anexos por link e mensagens de check, compartilhados com os membros da viagem.</li>
+    <li><strong>Nome / identificação:</strong> o nome que você define no app, usado para te identificar
+    para os outros membros da sua viagem. Usamos o <em>Sign in with Apple</em> apenas para entrar;
+    se você optar por ocultar seu e-mail, não o recebemos.</li>
+    <li><strong>Perfil (opcional):</strong> foto, telefone e e-mail que você mesmo preenche no app,
+    exibidos apenas para os membros das suas viagens.</li>
+    <li><strong>Localização precisa:</strong> só é coletada e compartilhada <em>enquanto você ativa
+    o compartilhamento</em>, e apenas com os membros da sua viagem, para mostrar a posição de todos no mapa.
+    Você pode parar o compartilhamento a qualquer momento dentro do app.</li>
+    <li><strong>Conteúdo que você cria:</strong> itinerário, dias, atividades, cidades, links de documentos
+    (reservas, seguro) e anotações que você adiciona à viagem.</li>
+    <li><strong>Atividade física:</strong> passos e distância do dia (via sensor de movimento do iPhone),
+    usados para o resumo diário. O acesso exige sua autorização em Ajustes › Privacidade › Movimento e Preparo Físico.</li>
+    <li><strong>Identificadores técnicos:</strong> um identificador anônimo de conta (autenticação) necessário
+    para o app funcionar e sincronizar os dados da viagem entre os membros.</li>
   </ul>
+
+  <div class="box">
+    <strong>Localização em segundo plano:</strong> se você autorizar “Sempre”, o app pode atualizar sua posição
+    para o grupo mesmo com o app fechado — útil para que os amigos te encontrem durante a viagem. Isso só ocorre
+    com o compartilhamento ligado, e você pode revogar em Ajustes › Privacidade › Localização a qualquer momento.
+  </div>
+
+  <h2>Como os dados são usados</h2>
+  <p>Os dados servem exclusivamente para <strong>fazer o app funcionar</strong>: mostrar a localização dos membros
+  no mapa, sincronizar o itinerário, exibir clima e câmbio, gerar os resumos da viagem e traduzir textos por imagem.
+  <strong>Não usamos seus dados para publicidade, não vendemos dados e não fazemos rastreamento entre apps ou sites.</strong></p>
 
   <h2>Onde os dados ficam</h2>
-  <p>Os dados da viagem e do perfil ficam armazenados no <strong>Firebase</strong> (serviço do Google), usado como banco de dados do app. Passos e calorias do dia são lidos do seu aparelho via os frameworks da Apple.</p>
+  <p>Os dados da viagem são armazenados no <strong>Firebase (Google Cloud)</strong>, que hospeda a base de dados e a
+  autenticação do app. Eles ficam acessíveis apenas aos membros da sua viagem. A tradução de textos usa os serviços
+  do próprio sistema (Apple). A tradução por imagem é processada no dispositivo.</p>
 
-  <h2>Como usamos</h2>
-  <p>Usamos os dados apenas para fazer o app funcionar: mostrar o grupo, o itinerário, a localização ao vivo, o clima, o câmbio, o tradutor e o resumo do dia. <strong>Não vendemos seus dados e não os usamos para publicidade.</strong></p>
+  <h2>Compartilhamento</h2>
+  <p>Seus dados são compartilhados apenas com os <strong>membros da viagem</strong> em que você entra, e com o provedor
+  de infraestrutura (Firebase/Google) estritamente para operar o serviço. Não há compartilhamento com anunciantes ou
+  corretores de dados.</p>
 
-  <h2>Serviços externos</h2>
-  <p>O app consulta serviços de terceiros para funcionalidades específicas: previsão do tempo (Open-Meteo), cotações de câmbio (open.er-api.com) e mapas/geocodificação (Apple Maps). Essas consultas usam apenas os dados necessários (por exemplo, o nome de uma cidade).</p>
+  <h2>Exclusão de dados</h2>
+  <p>Você pode apagar sua conta e seus dados diretamente no app, em <strong>Perfil › Excluir conta e dados</strong>.
+  Também pode solicitar a exclusão por e-mail: <a href="mailto:davi.morgado@gmail.com">davi.morgado@gmail.com</a>.</p>
 
-  <h2>Seus controles</h2>
-  <ul>
-    <li>Você pode parar de compartilhar sua localização quando quiser.</li>
-    <li>Você pode editar ou remover os dados do seu perfil no app.</li>
-    <li>Para excluir seus dados de uma viagem, saia do grupo ou peça ao administrador.</li>
-  </ul>
+  <h2>Crianças</h2>
+  <p>O Jorne não é direcionado a crianças e não coleta intencionalmente dados de menores de 13 anos.</p>
 
-  <h2>Contato</h2>
-  <p>Dúvidas sobre privacidade: <a href="mailto:davi.morgado@gmail.com">davi.morgado@gmail.com</a>.</p>
+  <h2>Seus direitos (LGPD)</h2>
+  <p>Conforme a Lei Geral de Proteção de Dados (Lei nº 13.709/2018), você pode acessar, corrigir ou excluir seus dados,
+  e revogar consentimentos (como localização e movimento) a qualquer momento pelos Ajustes do iPhone ou pelo app.</p>
 
-  <p class="foot">Jorne é um projeto pessoal para organizar uma viagem entre amigos. Esta política pode ser atualizada conforme o app evolui.</p>
+  <h2>Alterações</h2>
+  <p>Podemos atualizar esta política conforme o app evolui. Mudanças relevantes serão refletidas nesta página com nova data.</p>
+
+  <footer>
+    Jorne — organizador de viagens em grupo. Contato: davi.morgado@gmail.com
+  </footer>
 </div>
 </body>
 </html>
