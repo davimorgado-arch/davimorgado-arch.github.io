@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Studios Airbnb SP</title>
+<meta name="description" content="Levantamento inicial para investimento em studios de ~20 m² em São Paulo para Airbnb ou revenda: mercado, hóspedes, gestoras, diárias e construtoras.">
+<meta name="robots" content="noindex">
+<style>
+  /* Tokens de cor: claro por padrão, escuro via preferência do sistema ou data-theme */
+  :root {
+    --bg: #fafaf8; --surface: #ffffff; --text: #1d1d1b; --muted: #5f5f5a;
+    --border: #e3e2dc; --accent: #b4441f; --warn-bg: #fff4e5; --warn: #8a4b00;
+    --good: #2f6b3a; --bad: #a12d2d; --mid: #8a6d00;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #161614; --surface: #1f1f1c; --text: #ecebe6; --muted: #a5a49d;
+      --border: #34332e; --accent: #f0875f; --warn-bg: #2d2416; --warn: #f2c27a;
+      --good: #7fc78b; --bad: #f08a8a; --mid: #e3c55a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #161614; --surface: #1f1f1c; --text: #ecebe6; --muted: #a5a49d;
+    --border: #34332e; --accent: #f0875f; --warn-bg: #2d2416; --warn: #f2c27a;
+    --good: #7fc78b; --bad: #f08a8a; --mid: #e3c55a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 900px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 6px; }
+  h2 { font-size: 1.3rem; margin: 44px 0 10px; padding-top: 8px; border-top: 1px solid var(--border); }
+  h3 { font-size: 1.05rem; margin: 24px 0 8px; }
+  p, li { color: var(--text); }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  nav ol { columns: 2; padding-left: 20px; color: var(--muted); }
+  nav a { color: var(--accent); }
+  a { color: var(--accent); }
+  .note {
+    background: var(--warn-bg); color: var(--warn); border-radius: 8px;
+    padding: 12px 14px; margin: 14px 0; font-size: .95rem;
+  }
+  .note strong { color: var(--warn); }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin: 16px 0; }
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .kpi b { display: block; font-size: 1.4rem; font-variant-numeric: tabular-nums; }
+  .kpi span { color: var(--muted); font-size: .85rem; }
+  .table-wrap { overflow-x: auto; margin: 12px 0; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: .93rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  td.n { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .good { color: var(--good); font-weight: 600; }
+  .mid { color: var(--mid); font-weight: 600; }
+  .bad { color: var(--bad); font-weight: 600; }
+  .src { font-size: .85rem; color: var(--muted); }
+  .src li { margin-bottom: 4px; word-break: break-word; }
+  footer { margin-top: 48px; color: var(--muted); font-size: .85rem; }
+  @media (max-width: 560px) { nav ol { columns: 1; } h1 { font-size: 1.5rem; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Studios de ~20 m² em São Paulo: Airbnb ou revenda</h1>
+  <p class="sub">Levantamento inicial · outubro/2026 · dados públicos de plataformas de analytics, gestoras e Reclame Aqui</p>
+
+  <div class="note">
+    <strong>Leitura crítica antes de tudo:</strong> boa parte dos números públicos de Airbnb vem de gestoras que vendem o próprio serviço
+    (ocupações de 85–93% em rankings de bairro são do portfólio delas, não do mercado). A mediana de mercado em SP fica em
+    <strong>~60–63% de ocupação</strong>. Use as faixas medianas para modelar; trate os números de gestoras como teto.
+  </div>
+
+  <nav>
+    <ol>
+      <li><a href="#resumo">Resumo e conclusão</a></li>
+      <li><a href="#volume">Volume: SP vs. outras capitais</a></li>
+      <li><a href="#hospedes">Perfil do hóspede em SP</a></li>
+      <li><a href="#gestoras">Gestoras e quanto cobram</a></li>
+      <li><a href="#diarias">Diárias por região</a></li>
+      <li><a href="#conta">Conta de um studio de 20 m²</a></li>
+      <li><a href="#construtoras">Construtoras e reputação</a></li>
+      <li><a href="#riscos">Riscos e regras (STJ 2026)</a></li>
+      <li><a href="#proximos">Próximos passos</a></li>
+      <li><a href="#fontes">Fontes</a></li>
+    </ol>
+  </nav>
+
+  <h2 id="resumo">1. Resumo e conclusão</h2>
+  <div class="kpis">
+    <div class="kpi"><b>~30–35 mil</b><span>anúncios ativos em SP (maior mercado do país)</span></div>
+    <div class="kpi"><b>~61–63%</b><span>ocupação mediana em SP</span></div>
+    <div class="kpi"><b>R$ 220–245</b><span>diária média da cidade</span></div>
+    <div class="kpi"><b>~73%</b><span>dos anúncios são de 1 quarto/studio</span></div>
+  </div>
+  <ul>
+    <li><strong>Demanda existe e é do tipo certo:</strong> SP é o maior mercado Airbnb do Brasil, ~90% dos anúncios são o imóvel inteiro e ~73% têm 1 quarto. O hóspede típico é viajante a trabalho sozinho ou casal, estadia de 3–10 noites. O studio de 20–35 m² casa com esse perfil.</li>
+    <li><strong>Mas a rentabilidade líquida é apertada.</strong> No cenário base (abaixo), um studio de 20 m² rende <strong>~4–7% a.a. líquido antes de IR</strong>, abaixo da Selic (~12,5%). O retorno só fica atraente com localização muito boa (metrô a &lt;500 m, eixo Paulista/Pinheiros/Vila Olímpia), compra abaixo do mercado, ou valorização do imóvel.</li>
+    <li><strong>O maior risco hoje é jurídico:</strong> desde maio/2026 o STJ exige aprovação de 2/3 do condomínio para Airbnb em prédio residencial. <strong>Só compre em prédio com uso para curta temporada já previsto na convenção</strong> (unidades NR / prédios “short stay”).</li>
+    <li><strong>Saturação localizada:</strong> há excesso de lançamentos de compactos em Pinheiros, Itaim, Bela Vista, Vila Leopoldina, Tatuapé e outros, o que derrubou aluguel por m² para quem comprou na planta. Revenda de studio também sofre com essa oferta.</li>
+  </ul>
+
+  <h2 id="volume">2. Volume de anúncios: SP vs. outras capitais</h2>
+  <p>Números variam por fonte e por critério de “anúncio ativo”. As faixas abaixo cruzam AirROI, AirDNA, Airbtics e consolidações publicadas em 2025–2026.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Cidade</th><th>Anúncios ativos</th><th>Ocupação</th><th>Diária média (ADR)</th><th>Observação</th></tr></thead>
+    <tbody>
+      <tr><td><strong>São Paulo</strong></td><td class="n">30.000–35.700</td><td class="n">61–63%</td><td class="n">R$ 219–245</td><td>Maior mercado; demanda corporativa + eventos; menos sazonal</td></tr>
+      <tr><td>Rio de Janeiro</td><td class="n">29.000–48.000</td><td class="n">~62%</td><td class="n">~R$ 199</td><td>Receita média por imóvel maior (turismo de lazer); picos fortes (Réveillon, Carnaval)</td></tr>
+      <tr><td>Florianópolis</td><td class="n">~16.700–19.900</td><td class="n">35–57%</td><td class="n">~R$ 350</td><td>Muito sazonal (verão)</td></tr>
+      <tr><td>Salvador</td><td class="n">~5.900</td><td class="n">~29%*</td><td class="n">~R$ 390</td><td>*ocupação sobre todos os anúncios, inclusive pouco ativos</td></tr>
+      <tr><td>Belo Horizonte</td><td class="n">~3.300</td><td class="n">n/d</td><td class="n">n/d</td><td>Mercado pequeno</td></tr>
+      <tr><td>Fortaleza</td><td class="n">~2.800</td><td class="n">~43%</td><td class="n">~US$ 59 (~R$ 320)</td><td>Turismo de lazer</td></tr>
+    </tbody>
+  </table></div>
+  <p><strong>Leitura:</strong> SP e Rio dominam o volume. SP tem ADR menor que destinos de praia, mas ocupação mais estável ao longo do ano, o que favorece studio corporativo. Brasil como um todo passa de 200 mil anúncios (algumas fontes falam em ~600 mil imóveis cadastrados).</p>
+
+  <h2 id="hospedes">3. Perfil do hóspede Airbnb em São Paulo</h2>
+  <div class="note"><strong>Limitação:</strong> o Airbnb não publica um perfil demográfico detalhado e atualizado por cidade. O dado mais completo de SP é de 2018 (Airbnb/Exame); os de 2026 são parciais.</div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Dimensão</th><th>Dado</th><th>Fonte / ano</th></tr></thead>
+    <tbody>
+      <tr><td>Gênero (quem reserva)</td><td class="n">51% mulheres · 49% homens</td><td>Airbnb, SP, 2018</td></tr>
+      <tr><td>Idade média de quem reserva</td><td class="n">34 anos</td><td>Airbnb, SP, 2018</td></tr>
+      <tr><td>Geração</td><td>~50% Geração Z/Alpha; Gen Z ≈ 70% das buscas no Lollapalooza 2026</td><td>Consolidações 2026; Airbnb News 2026</td></tr>
+      <tr><td>Origem</td><td class="n">~86% hóspedes domésticos</td><td>Consolidações 2026</td></tr>
+      <tr><td>Tamanho do grupo</td><td>Média 2,8 pessoas; 91% das viagens com até 4 hóspedes</td><td>Airbnb, SP, 2018</td></tr>
+      <tr><td>Estadia média</td><td class="n">5,3 noites (2018); 3–10 noites no perfil corporativo</td><td>Airbnb 2018; gestoras 2026</td></tr>
+      <tr><td>Motivo</td><td>Trabalho/eventos/saúde (hospitais) + lazer; crescimento de 60+ (+93% em 2018)</td><td>Airbnb</td></tr>
+    </tbody>
+  </table></div>
+  <p><strong>Implicação para 20 m²:</strong> o público-alvo é 1–2 pessoas, a trabalho ou casal jovem, que valoriza Wi-Fi rápido, mesa de trabalho, self check-in, metrô perto e fotos “instagramáveis”. Grupos de 3+ não são público de 20 m² — ignore no modelo.</p>
+
+  <h2 id="gestoras">4. Empresas de gestão (limpeza, anúncio, hóspede)</h2>
+  <p>Faixa de mercado no Brasil: <strong>15% a 35% da receita bruta</strong>. O que muda é o que está incluso (limpeza, enxoval, manutenção, seguro, decoração).</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Empresa</th><th>Modelo</th><th>Quanto cobra</th><th>Obs.</th></tr></thead>
+    <tbody>
+      <tr><td>HostnJoy</td><td>Gestão completa</td><td class="n">16% da reserva</td><td>Sem mensalidade, adesão ou fidelidade (anunciado)</td></tr>
+      <tr><td>WeCare Hosting</td><td>Online ou 360°</td><td class="n">15% (online) · 20% (com limpeza/manutenção)</td><td>+ seguro obrigatório R$ 120/mês</td></tr>
+      <tr><td>Anfitrião SP</td><td>Gestão</td><td class="n">15% das diárias</td><td>Limpeza paga pelo hóspede via taxa</td></tr>
+      <tr><td>Seazone</td><td>Planos Essencial/Plus/Safe/Premium</td><td class="n">25% a 28%</td><td>Adesão R$ 1.499; inclui limpeza, lavanderia, seguro (conforme plano). Maior anfitrião do país</td></tr>
+      <tr><td>Charlie</td><td>Gestão “all inclusive”, foco em prédios inteiros/corporativo</td><td class="n">% sobre receita (não divulgado)</td><td>~R$ 2 bi sob gestão; promete 8–12% a.a.</td></tr>
+      <tr><td>Housi</td><td>Plataforma + gestão (“moradia por assinatura”)</td><td class="n">% sobre receita (não divulgado)</td><td>Reclame Aqui 7,3/10 (102 reclamações)</td></tr>
+      <tr><td>Cyclinn, Dália Stays, Yogha, REdoor (ex-Tabas)</td><td>Gestão profissional</td><td class="n">Comissão (sob consulta)</td><td>Pedir proposta; tipicamente 18–25%</td></tr>
+    </tbody>
+  </table></div>
+  <h3>Custos operacionais de referência (studio)</h3>
+  <ul>
+    <li><strong>Limpeza por check-out:</strong> R$ 80–150 (diarista autônoma R$ 100–150; empresa R$ 150–220).</li>
+    <li><strong>Enxoval/lavanderia por troca:</strong> R$ 40–80 (aluguel de enxoval + lavagem).</li>
+    <li><strong>Taxa de limpeza cobrada do hóspede:</strong> R$ 80–150 para studio (média ~R$ 120) — normalmente cobre a limpeza.</li>
+    <li><strong>Taxa do Airbnb:</strong> modelo de taxa única de ~16% paga pelo anfitrião (obrigatória para quem usa software de gestão); no modelo dividido, ~3% anfitrião + taxa do hóspede.</li>
+  </ul>
+  <p><strong>Observação:</strong> ~73% dos anúncios ativos em SP já são de perfis com múltiplos imóveis — o mercado é profissionalizado. Anfitrião amador compete com gestoras que têm precificação dinâmica.</p>
+
+  <h2 id="diarias">5. Diária média por região</h2>
+  <div class="note"><strong>Dois conjuntos de dados, bem diferentes:</strong> a coluna “Gestora” vem do ranking da HostnJoy (portfólio próprio, imóveis de vários tamanhos, ocupação 80–93%) e está inflada para modelagem. A coluna “Mercado” vem de plataformas de analytics (mediana de anúncios, convertida de US$ a ~R$ 5,3). Para studio de 20 m², use a coluna “Studio (estimado)”.</div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Bairro</th><th>Gestora (diária / ocup.)</th><th>Mercado (mediana)</th><th>Studio ~20 m² (estimado)</th><th>R$/m² venda (ref.)</th></tr></thead>
+    <tbody>
+      <tr><td>Vila Olímpia</td><td class="n">R$ 720 / 93%</td><td class="n">—</td><td class="n">R$ 230–330</td><td class="n">~R$ 18–20 mil</td></tr>
+      <tr><td>Jardins / Jd. Paulista</td><td class="n">R$ 680 / 91%</td><td class="n">~R$ 490 / 60%</td><td class="n">R$ 220–320</td><td class="n">~R$ 17,8 mil</td></tr>
+      <tr><td>Itaim Bibi</td><td class="n">R$ 480 / 88%</td><td class="n">~R$ 590 / 62%</td><td class="n">R$ 150–350</td><td class="n">~R$ 20 mil</td></tr>
+      <tr><td>Pinheiros</td><td class="n">R$ 520 / 88%</td><td class="n">~R$ 520 / 61%</td><td class="n">R$ 200–300 (mediana studio ~R$ 300)</td><td class="n">~R$ 18,3 mil</td></tr>
+      <tr><td>Brooklin</td><td class="n">R$ 380 / 84%</td><td class="n">—</td><td class="n">R$ 180–260</td><td class="n">—</td></tr>
+      <tr><td>Moema</td><td class="n">R$ 380 / 82%</td><td class="n">~R$ 445 / 62%</td><td class="n">R$ 180–260</td><td class="n">~R$ 16,3 mil</td></tr>
+      <tr><td>Vila Madalena</td><td class="n">R$ 320 / 85%</td><td class="n">—</td><td class="n">R$ 180–280</td><td class="n">—</td></tr>
+      <tr><td>Consolação / Bela Vista (Paulista)</td><td class="n">R$ 280 / 80%</td><td class="n">~R$ 400 / 61%</td><td class="n">R$ 160–240</td><td class="n">~R$ 12,5 mil</td></tr>
+      <tr><td>Paraíso</td><td class="n">R$ 290 / 81%</td><td class="n">—</td><td class="n">R$ 160–240</td><td class="n">~R$ 13,9 mil</td></tr>
+      <tr><td>Centro (República, Sé, 25 de Março)</td><td class="n">—</td><td class="n">—</td><td class="n">R$ 120–200</td><td class="n">menor; mais risco de ocupação</td></tr>
+      <tr><td><strong>Cidade (média)</strong></td><td class="n">—</td><td class="n">R$ 219–245 / 61–63%</td><td class="n">—</td><td class="n">R$ 12,1 mil (1 dorm.: R$ 12,1 mil)</td></tr>
+    </tbody>
+  </table></div>
+  <p class="src">R$/m² de venda: FipeZap jul/2026 e consolidações por bairro. Studios compactos novos costumam sair <em>acima</em> do R$/m² médio do bairro (preço por m² sobe quando a área cai) — espere 20–40% acima.</p>
+
+  <h2 id="conta">6. Conta de um studio de 20 m² (cenário base)</h2>
+  <p>Premissas: studio pronto, bem localizado (Pinheiros/Paulista/Vila Mariana), preço de compra <strong>R$ 380 mil</strong> (~R$ 19 mil/m²) + <strong>R$ 35 mil</strong> de mobília/decoração/enxoval = <strong>R$ 415 mil</strong> investidos. Limpeza paga pela taxa do hóspede.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Item (mensal)</th><th>Pessimista</th><th>Base</th><th>Otimista</th></tr></thead>
+    <tbody>
+      <tr><td>Diária média</td><td class="n">R$ 190</td><td class="n">R$ 230</td><td class="n">R$ 270</td></tr>
+      <tr><td>Ocupação</td><td class="n">55%</td><td class="n">62%</td><td class="n">72%</td></tr>
+      <tr><td><strong>Receita bruta</strong></td><td class="n">R$ 3.135</td><td class="n">R$ 4.278</td><td class="n">R$ 5.832</td></tr>
+      <tr><td>Taxa Airbnb (~16%)</td><td class="n">−R$ 500</td><td class="n">−R$ 684</td><td class="n">−R$ 933</td></tr>
+      <tr><td>Gestora (20% do bruto)</td><td class="n">−R$ 625</td><td class="n">−R$ 856</td><td class="n">−R$ 1.166</td></tr>
+      <tr><td>Condomínio + IPTU</td><td class="n">−R$ 800</td><td class="n">−R$ 750</td><td class="n">−R$ 700</td></tr>
+      <tr><td>Luz, internet, streaming, amenities</td><td class="n">−R$ 300</td><td class="n">−R$ 300</td><td class="n">−R$ 320</td></tr>
+      <tr><td>Manutenção / reposição</td><td class="n">−R$ 150</td><td class="n">−R$ 150</td><td class="n">−R$ 150</td></tr>
+      <tr><td><strong>Líquido antes de IR</strong></td><td class="n"><strong>R$ 760</strong></td><td class="n"><strong>R$ 1.538</strong></td><td class="n"><strong>R$ 2.563</strong></td></tr>
+      <tr><td><strong>Retorno a.a. sobre R$ 415 mil</strong></td><td class="n bad">2,2%</td><td class="n mid">4,4%</td><td class="n good">7,4%</td></tr>
+    </tbody>
+  </table></div>
+  <ul>
+    <li><strong>Comparação:</strong> Selic ~12,5% a.a.; aluguel tradicional em SP rende ~5–6% a.a. bruto (FipeZap) com bem menos trabalho. Gestoras anunciam 8–12% a.a. — isso exige diária e ocupação no cenário otimista ou acima.</li>
+    <li><strong>IR:</strong> pessoa física paga carnê-leão (até 27,5%) sobre o líquido; vale avaliar PJ/holding conforme o volume de imóveis.</li>
+    <li><strong>Alavanca principal é o preço de compra.</strong> Comprar a R$ 300 mil (em vez de 380) no cenário base leva o retorno para ~5,5%; comprar na planta com desconto e vender na entrega é a outra tese (ver riscos de saturação).</li>
+    <li>Dica: valide diária/ocupação de anúncios concorrentes no endereço exato via AirDNA (pago) antes de fechar.</li>
+  </ul>
+
+  <h2 id="construtoras">7. Construtoras/incorporadoras e reputação (Reclame Aqui)</h2>
+  <p>Notas e números da página de cada empresa no Reclame Aqui, período mar–ago/2026 (ou o mais recente disponível). Volume de reclamações acompanha o tamanho da empresa — olhe <em>% resolvido</em> e <em>voltaria a fazer negócio</em>, não só a nota.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Empresa</th><th>Foco relevante</th><th>Nota RA</th><th>Reclamações</th><th>% resolvido</th><th>Status / pontos de atenção</th></tr></thead>
+    <tbody>
+      <tr><td>Vibra Residencial</td><td>Econômico/compactos</td><td class="n good">8,9</td><td class="n">283</td><td class="n">93,3%</td><td>RA1000. Queixas: infiltração, acabamento</td></tr>
+      <tr><td>Vitacon</td><td><strong>Especialista em studios</strong></td><td class="n good">8,7</td><td class="n">92</td><td class="n">91,4%</td><td>Ótimo; prêmio RA 2026. Queixas históricas de atraso (~15%) e defeitos</td></tr>
+      <tr><td>Cury</td><td>Econômico (MCMV), compactos</td><td class="n good">8,2</td><td class="n">3.375</td><td class="n">—</td><td>Ótimo; volume alto de queixas por atraso/qualidade</td></tr>
+      <tr><td>Eztec</td><td>Médio/alto padrão</td><td class="n good">8,0–8,1</td><td class="n">145</td><td class="n">88,8%</td><td>Ótimo; uma das mais rentáveis da bolsa</td></tr>
+      <tr><td>Plano&amp;Plano</td><td>Econômico</td><td class="n good">8,0</td><td class="n">1.607</td><td class="n">88,6%</td><td>Ótimo; queixas de acabamento/garantia</td></tr>
+      <tr><td>Grupo Cyrela</td><td>Médio/alto padrão</td><td class="n mid">7,6</td><td class="n">1.110</td><td class="n">83,4%</td><td>Bom</td></tr>
+      <tr><td>Even</td><td>Médio/alto padrão</td><td class="n mid">7,6</td><td class="n">112</td><td class="n">79,1%</td><td>Bom; resposta média 23 dias</td></tr>
+      <tr><td>Housi</td><td>Plataforma/gestão + prédios próprios</td><td class="n mid">7,3</td><td class="n">102</td><td class="n">—</td><td>Bom</td></tr>
+      <tr><td>Tegra</td><td>Médio/alto padrão</td><td class="n mid">7,2</td><td class="n">105</td><td class="n">77,8%</td><td>Bom; queixas de assistência técnica lenta</td></tr>
+      <tr><td>MRV</td><td>Econômico</td><td class="n mid">6,7</td><td class="n">5.234</td><td class="n">—</td><td>Regular; atrasos, infiltração</td></tr>
+      <tr><td>Trisul</td><td>Médio padrão, compactos</td><td class="n mid">6,2</td><td class="n">201</td><td class="n">72%</td><td>Regular; defeitos e pós-venda</td></tr>
+      <tr><td>Lavvi (Cyrela)</td><td>Médio/alto padrão</td><td class="n mid">6,0</td><td class="n">115</td><td class="n">67,5%</td><td>Regular</td></tr>
+      <tr><td>Mitre Realty</td><td>Médio padrão, compactos</td><td class="n mid">—</td><td class="n">—</td><td class="n">—</td><td>Regular; sem avaliações recentes; queixas de distrato e atraso</td></tr>
+      <tr><td>Gafisa</td><td>Médio/alto padrão</td><td class="n bad">5,5</td><td class="n">~176</td><td class="n">61%</td><td>Ruim</td></tr>
+      <tr><td>Setin</td><td><strong>Studios NR (linha Downtown/smart)</strong></td><td class="n bad">3,9</td><td class="n">28</td><td class="n">36,4%</td><td><strong>Não recomendada</strong>; vícios ocultos, áreas comuns, resposta média 38 dias</td></tr>
+      <tr><td>You, Inc</td><td><strong>Compactos médio/alto padrão</strong></td><td class="n bad">—</td><td class="n">97</td><td class="n">—</td><td><strong>Não recomendada</strong> (mar–ago/2026); respondeu só 39%; atrasos e repasse</td></tr>
+    </tbody>
+  </table></div>
+  <p class="src">Não encontrei dados de Reclame Aqui para Gamaro e Kallas nesta rodada. Notas mudam mês a mês — confira a página da empresa antes de assinar.</p>
+  <p><strong>Leitura:</strong> entre os especialistas em studio, <strong>Vitacon</strong> está bem avaliada hoje; <strong>Setin e You, Inc</strong> — dois dos maiores lançadores de compactos em SP — estão “Não recomendadas”. Além do RA, verifique: histórico de entrega no prazo, processos no TJ-SP (“Consulta processual” pelo CNPJ da SPE), patrimônio de afetação e se o empreendimento já tem convenção com curta temporada liberada.</p>
+
+  <h2 id="riscos">8. Riscos e regras</h2>
+  <ul>
+    <li><strong>STJ, maio/2026 (REsp 2.121.055):</strong> uso de imóvel residencial para curta temporada com exploração reiterada/profissional exige previsão na convenção, aprovada por <strong>2/3 dos condôminos</strong>. Placar 5×4; o tema virou repetitivo (Tema 1.443) e os processos estão suspensos até decisão final. Na prática: <strong>prédio residencial sem cláusula = risco alto</strong>.</li>
+    <li><strong>Unidades NR (não residenciais):</strong> previstas na Lei de Zoneamento de SP (16.402/2016), em geral até ~30 m², com hospedagem de curta duração prevista no projeto. São a opção mais segura para Airbnb; confirme na matrícula, no alvará e na convenção.</li>
+    <li><strong>Saturação de compactos:</strong> studios já são ~21% do estoque e a 2ª tipologia mais lançada em SP. Bairros com excesso de lançamentos e aluguel/m² em queda: Itaim, Jd. Paulista, Higienópolis, Pinheiros, Perdizes, Campo Belo, Vila Leopoldina, Bela Vista, Tatuapé, Liberdade, Mooca. Isso afeta tanto diária quanto liquidez na revenda.</li>
+    <li><strong>Liquidez na revenda:</strong> studio de 20 m² tem público comprador restrito (investidor). Em ciclo de juros alto, o desconto para vender rápido pode comer a valorização.</li>
+    <li><strong>Reforma tributária:</strong> locação de curta temporada tende a ser equiparada a hospedagem no IBS/CBS a partir da transição (2027+) para quem se enquadrar como contribuinte — não encontrei fonte conclusiva nesta rodada; vale consultar um contador.</li>
+    <li><strong>Regra prática do metrô:</strong> studio a &lt;500 m de estação tem vacância anual de 2–7% (longa duração) e é o que segura ocupação na curta.</li>
+  </ul>
+
+  <h2 id="proximos">9. Próximos passos sugeridos</h2>
+  <ol>
+    <li>Definir a tese: renda (Airbnb) ou ganho de capital (planta → revenda). A conta acima sugere que renda pura só fecha no cenário otimista.</li>
+    <li>Escolher 3–4 microrregiões (ex.: Paulista/Consolação, Pinheiros, Vila Mariana, Brooklin) e mapear prédios NR/“short stay liberado” perto de metrô.</li>
+    <li>Rodar AirDNA (ou similar) no endereço exato para diária e ocupação reais dos concorrentes do mesmo prédio.</li>
+    <li>Pedir propostas formais a 3 gestoras (ex.: Seazone, Charlie, uma menor de 15–20%) com simulação para o imóvel específico.</li>
+    <li>Due diligence da construtora: Reclame Aqui atual, processos, histórico de entregas, patrimônio de afetação.</li>
+    <li>Montar planilha de viabilidade com financiamento (se houver) e IR — posso fazer na próxima etapa.</li>
+  </ol>
+
+  <h2 id="fontes">10. Fontes</h2>
+  <ul class="src">
+    <li>Mercado SP e capitais: <a href="https://www.airdna.co/vacation-rental-data/app/br/sao-paulo">AirDNA – São Paulo</a> · <a href="https://www.airroi.com/airbnb-data/brazil">AirROI – Brasil</a> · <a href="https://www.airroi.com/airbnb-data/brazil/s%C3%A3o-paulo/s%C3%A3o-paulo">AirROI – São Paulo</a> · <a href="https://airbtics.com/annual-airbnb-revenue-in-sao-paulo-brazil">Airbtics – SP</a> · <a href="https://airbtics.com/annual-airbnb-revenue-in-salvador-brazil/">Airbtics – Salvador</a> · <a href="https://airbtics.com/annual-airbnb-revenue-in-florianpolis-brazil/">Airbtics – Florianópolis</a> · <a href="https://www.airroi.com/airbnb-data/brazil/cear%C3%A1/fortaleza">AirROI – Fortaleza</a> · <a href="https://www.bnbcalc.com/markets/br/salvador">BnbCalc – Salvador</a> · <a href="https://hostnjoy.com.br/blog/estatisticas-airbnb-brasil-2026">HostnJoy – Estatísticas 2026</a> · <a href="https://www.wecarehosting.com.br/blog/quanto-rende-apartamento-airbnb-sao-paulo">WeCare – Quanto rende em SP</a> · <a href="https://tulugar.com/pt/airbnb/brasil/sao-paulo">Tulugar – SP</a></li>
+    <li>Hóspedes: <a href="https://exame.com/negocios/airbnb-faz-sucesso-em-sao-paulo-e-nao-so-para-viagens-a-trabalho/">Exame – Airbnb em SP</a> · <a href="https://news.airbnb.com/br/viajantes-com-mais-de-60-anos-lideram-crescimento-no-airbnb/">Airbnb News – 60+</a> · <a href="https://news.airbnb.com/br/lollapalooza-brasil-2026/">Airbnb News – Lollapalooza 2026</a> · <a href="https://daliastays.com/estudio-airbnb-sao-paulo/">Dália Stays – Estúdio em SP</a></li>
+    <li>Gestoras e custos: <a href="https://hostnjoy.com.br/blog/tarifas-gestao-airbnb">HostnJoy – Tarifas</a> · <a href="https://www.wecarehosting.com.br/blog/property-management-airbnb">WeCare – Property management</a> · <a href="https://www.anfitriaosp.com.br/">Anfitrião SP</a> · <a href="https://github.com/AdrianoFontenele/simulador-imobiliario/pull/3">Planos Seazone (referência em simulador público)</a> · <a href="https://blog.staycharlie.com.br/gest%C3%A3o-profissional-de-im%C3%B3veis-domina-airbnb-em-sp-e-o-charlie-%C3%A9-um-dos-destaques">Charlie – Gestão em SP</a> · <a href="https://exame.com/negocios/nem-airbnb-nem-hotel-com-r-2-bi-sob-gestao-proptech-charlie-mira-empresas-e-estadias-maiores/">Exame – Charlie</a> · <a href="https://housi.com/blog/cidades/quanto-rende-studio-decorado-sao-paulo/">Housi – Studio decorado</a> · <a href="https://hostnjoy.com.br/blog/taxa-limpeza-airbnb">HostnJoy – Taxa de limpeza</a> · <a href="https://stays.net/blog/comissao-do-airbnb-novo-modelo/">Stays – Taxa Airbnb</a></li>
+    <li>Diárias e preço/m²: <a href="https://hostnjoy.com.br/blog/quanto-rende-airbnb-sao-paulo">HostnJoy – Ranking por bairro</a> · <a href="https://hostnjoy.com.br/blog/melhor-bairro-investir-airbnb-sp-2026">HostnJoy – Melhor bairro 2026</a> · <a href="https://forbes.com.br/forbes-money/forbes-real-estate/2026/08/sao-paulo-metro-quadrado-fipezap/">Forbes – FipeZap jul/2026</a> · <a href="https://appmeuimovel.com/blog/guia-de-cidades-e-bairros/valor-do-metro-quadrado-regioes-sao-paulo">R$/m² por região</a> · <a href="https://iapartamentos.com.br/studios-em-sao-paulo-alta-ou-saturacao/">Studios: alta ou saturação</a> · <a href="https://www.blinkreformei.com.br/apartamento-para-investimento/studio-em-sao-paulo-vale-a-pena-em-2026-panorama-completo-do-mercado/">Studio em SP vale a pena em 2026?</a></li>
+    <li>Reclame Aqui: <a href="https://www.reclameaqui.com.br/empresa/vitacon/">Vitacon</a> · <a href="https://www.reclameaqui.com.br/empresa/setin-empreendimentos-imobiliarios/">Setin</a> · <a href="https://www.reclameaqui.com.br/empresa/you-inc-incorporadora-e-participacoes/">You, Inc</a> · <a href="https://www.reclameaqui.com.br/empresa/cury-construtora/">Cury</a> · <a href="https://www.reclameaqui.com.br/empresa/tegra-incorporadora_187628/">Tegra</a> · <a href="https://www.reclameaqui.com.br/empresa/vibra-residencial/">Vibra</a> · <a href="https://www.reclameaqui.com.br/empresa/ez-tec/">Eztec</a> · <a href="https://www.reclameaqui.com.br/empresa/cyrela-brazil-realty/">Cyrela</a> · <a href="https://www.reclameaqui.com.br/empresa/lavvi-incorporadora-pracas-da-cidade/">Lavvi</a> · <a href="https://www.reclameaqui.com.br/empresa/even-construtora-e-incorporadora-s-a/">Even</a> · <a href="https://www.reclameaqui.com.br/empresa/plano-e-plano-construcoes-e-participacoes/">Plano&amp;Plano</a> · <a href="https://www.reclameaqui.com.br/empresa/trisul/">Trisul</a> · <a href="https://www.reclameaqui.com.br/empresa/mrv-engenharia/">MRV</a> · <a href="https://www.reclameaqui.com.br/empresa/housi/">Housi</a> · <a href="https://www.reclameaqui.com.br/empresa/mitre-realty/lista-reclamacoes/">Mitre</a> · <a href="https://www.canceleseucontrato.com.br/construtoras-reclame-aqui/">Consolidação de notas (Gafisa)</a></li>
+    <li>Jurídico: <a href="https://www.stj.jus.br/sites/portalp/Paginas/Comunicacao/Noticias/2026/07052026-Oferta-de-imovel-em-plataformas-como-Airbnb-exige-aprovacao-do-condominio--define-Segunda-Secao.aspx">STJ – Segunda Seção, 07/05/2026</a> · <a href="https://cesconbarrieu.com.br/stj-define-que-locacao-por-curta-temporada-via-airbnb-em-condominios-exige-aprovacao-previa-de-dois-tercos-dos-condominos/">Cescon Barrieu</a> · <a href="https://www.migalhas.com.br/quentes/457659/stj-afeta-recursos-e-suspende-acoes-sobre-airbnb-em-condominios">Migalhas – Tema 1.443</a> · <a href="https://www.machadomeyer.com.br/pt/inteligencia-juridica/publicacoes-ij/imobiliario/desafios-do-uso-dos-studios-nrs-em-sao-paulo">Machado Meyer – Studios NR</a> · <a href="https://iapartamentos.com.br/nr-imovel-nao-residencial-sao-paulo/">Imóvel NR em SP</a></li>
+  </ul>
+
+  <footer>Levantamento feito com buscas públicas em outubro/2026. Números de plataformas de analytics divergem entre si; valores convertidos de US$ usam ~R$ 5,3. Não é recomendação de investimento.</footer>
+</main>
+</body>
+</html>
