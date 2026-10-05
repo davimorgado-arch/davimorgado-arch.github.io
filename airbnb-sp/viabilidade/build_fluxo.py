@@ -143,6 +143,22 @@ inp("valoriz", "Valorização do imóvel (a.a.)", 0.05, PCT, "SP: +3,8% em 12 me
 inp("corret", "Corretagem na venda", 0.06, PCT)
 inp("ir_gc", "IR sobre ganho de capital", 0.15, PCT, "Sem fatores de redução (conservador)")
 
+section("6. Consórcio (alternativa ao financiamento direto)")
+inp("c_adesao", "Adesão ao consórcio", date(2027, 1, 1), DT, "Junto com a compra (jan/27). A carta só quita o imóvel com habite-se, ou seja, nas chaves")
+inp("c_prazo", "Prazo do plano (meses)", 180, '0', "Imóvel: 150-240 meses é o comum")
+inp("c_tadm", "Taxa de administração (total do plano)", 0.18, PCT, "Mercado: 15-25% (algumas a partir de 9,5%)", key_assumption=True)
+inp("c_fr", "Fundo de reserva (total do plano)", 0.02, PCT, "Mercado: 1-5%, comum 2-3%")
+inp("c_idx", "Reajuste anual da carta e parcelas", 0.055, PCT, "Normalmente INCC (aniversário anual). Mesmo INCC da obra")
+inp("c_red", "Parcela reduzida até a contemplação (% da integral)", 0.5, PCT, "Informado pelo usuário: 50%. A diferença é diluída depois da contemplação")
+inp("c_emb", "Lance embutido (% da carta)", 0.30, PCT, "Informado pelo usuário: embutido. Limite usual 25-30%; reduz o crédito recebido", key_assumption=True)
+inp("c_livre", "Lance livre em dinheiro (% da carta)", 0.0, PCT, "Lances vencedores: 20-40% (grupos novos 10-20%). Some ao embutido se precisar", key_assumption=True)
+inp("c_contemp", "Mês da contemplação", date(2028, 6, 1), DT, "Premissa: até as chaves. Sem contemplação até ago/28 seria preciso outra fonte para quitar o saldo", key_assumption=True)
+inp("c_itbi", "Usar o crédito também para ITBI/registro? (1=sim, 0=não)", 1, '0', "Administradoras costumam permitir o uso do excedente em despesas de registro")
+inp("cA_val", "Estrutura A: valor de cada carta", 100000, BRL, "Informado pelo usuário: cartas de R$ 100 mil", key_assumption=True)
+inp("cA_qtd", "Estrutura A: quantidade de cartas", 5, '0', "5 cartas cobrem o saldo das chaves + ITBI com 30% de embutido. Cada carta precisa ser contemplada")
+inp("cB_val", "Estrutura B: valor de cada carta", 300000, BRL, "Informado pelo usuário: cartas de R$ 300 mil", key_assumption=True)
+inp("cB_qtd", "Estrutura B: quantidade de cartas", 2, '0', "1 carta não cobre o saldo; 2 cartas sobram crédito, que abate o plano")
+
 section("Taxas mensais equivalentes (calculadas)")
 for k, lab in [("incc", "INCC"), ("juros", "Juros"), ("ipca_fin", "Correção do saldo"), ("infl", "Inflação"), ("valoriz", "Valorização")]:
     inp(k + "_m", f"{lab} ao mês", f"=(1+{P[k]})^(1/12)-1", '0.000%', formula=True)
@@ -262,11 +278,189 @@ for col in ("C", "E", "AC", "AD", "AE"):
 FL = "'Fluxo mensal'"
 rng = lambda col: f"{FL}!${col}${first}:${col}${last}"
 
+
+# =====================================================================
+# Abas 5/6: Consórcio (uma por estrutura de cartas)
+# =====================================================================
+FLX = "'Fluxo mensal'"
+def make_consorcio(title, vkey, qkey, label):
+    wc = wb.create_sheet(title)
+    wc["A1"] = f"Consórcio - {label}"; wc["A1"].font = f_title
+    wc["A2"] = ("Obra paga em dinheiro como na tabela; consórcio desde a adesão (parcela reduzida até a contemplação); "
+                "crédito quita o saldo nas chaves no lugar do financiamento direto. Operação Airbnb igual à aba Fluxo mensal.")
+    wc["A2"].font = Font(name=F, size=9, italic=True)
+    V, Q, n = P[vkey], P[qkey], P["c_prazo"]
+    K = f"(1+{P['c_tadm']}+{P['c_fr']})"
+    cols = [("A","Mês",9),("B","Nº parcela consórcio",8),("C","Valor da carta corrigido (unid.)",13),
+            ("D","Fração do plano paga no mês",10),("E","Amortização extra (fração)",10),("F","Fração acumulada",9),
+            ("G","Parcela consórcio (todas as cartas)",13),("H","Lance livre (dinheiro)",12),("I","Complemento em dinheiro nas chaves",13),
+            ("J","Saldo devedor do consórcio",14),("K","Fluxo de caixa do mês",13),("L","Caixa acumulado",14),
+            ("M","Patrimônio líquido se vender",14),("N","Posição total",14),
+            ("O","Flag: aluguel cobre parcela",10),("P","Flag: caixa ≥ 0",10),("Q","Flag: posição ≥ 0",10)]
+    for col, h, w in cols:
+        c = wc[f"{col}{HR}"]; c.value = h; c.font = f_head; c.fill = fill_head
+        c.alignment = Alignment(wrap_text=True, vertical="center", horizontal="center")
+        wc.column_dimensions[col].width = w
+    wc.row_dimensions[HR].height = 54
+    # células auxiliares (coluna S/T)
+    aux = {}
+    ar = HR
+    def helper(key, label, formula, fmt=BRL):
+        nonlocal ar
+        wc[f"S{ar}"] = label; wc[f"S{ar}"].font = f_norm
+        wc[f"T{ar}"] = formula; wc[f"T{ar}"].font = f_norm; wc[f"T{ar}"].number_format = fmt
+        aux[key] = f"$T${ar}"; ar += 1
+    wc[f"S{HR-1}"] = "Cálculos auxiliares"; wc[f"S{HR-1}"].font = f_bold
+    rngc = lambda col: f"${col}${first}:${col}${last}"
+    helper("vc", "Valor da carta na contemplação (unid.)", f"=INDEX({rngc('C')},MATCH({P['c_contemp']},{rngc('A')},0))")
+    helper("cred", "Crédito líquido liberado (após lance embutido)", f"={Q}*{aux['vc']}*(1-{P['c_emb']})")
+    helper("need", "Necessidade nas chaves (saldo + ITBI se usar crédito)",
+           f"=INDEX({FLX}!$N${first}:$N${last},MATCH({P['chaves']},{FLX}!$A${first}:$A${last},0))"
+           f"+{P['c_itbi']}*INDEX({FLX}!$G${first}:$G${last},MATCH({P['chaves']},{FLX}!$A${first}:$A${last},0))")
+    helper("exc", "Crédito excedente (abate o plano)", f"=MAX(0,{aux['cred']}-{aux['need']})")
+    helper("falta", "Falta cobrir em dinheiro", f"=MAX(0,{aux['need']}-{aux['cred']})")
+    helper("vk", "Valor da carta nas chaves (unid.)", f"=INDEX({rngc('C')},MATCH({P['chaves']},{rngc('A')},0))")
+    helper("custo", "Custo de aquisição p/ IR (preço corrigido + ITBI)",
+           f"={P['preco']}*(1+{P['incc_m']})^((YEAR({P['chaves']})-YEAR({P['base']}))*12+MONTH({P['chaves']})-MONTH({P['base']}))*(1+{P['itbi']})")
+    helper("ok", "Contemplação até as chaves?", f'=IF({P["c_contemp"]}<={P["chaves"]},"OK","ATENÇÃO: contemplação depois das chaves")', '@')
+    wc.column_dimensions["S"].width = 46; wc.column_dimensions["T"].width = 16
+
+    for idx in range(len(months)):
+        r = first + idx; A = f"$A{r}"
+        wc[f"A{r}"] = f"={FLX}!A{r}"
+        ms = f"((YEAR({A})-YEAR({P['c_adesao']}))*12+MONTH({A})-MONTH({P['c_adesao']}))"
+        wc[f"B{r}"] = f"=IF(AND({A}>={P['c_adesao']},{ms}<{n}),{ms}+1,0)"
+        wc[f"C{r}"] = f"={V}*(1+{P['c_idx']})^INT(MAX(0,{ms})/12)"
+        prevF = f"F{r-1}" if idx > 0 else "0"
+        wc[f"D{r}"] = (f"=IF(B{r}=0,0,IF({A}<={P['c_contemp']},{P['c_red']}/{n},"
+                       f"MAX(0,1-{prevF})/({n}-B{r}+1)))")
+        wc[f"E{r}"] = (f"=({A}={P['c_contemp']})*({P['c_emb']}+{P['c_livre']})/{K}"
+                       f"+({A}={P['chaves']})*{aux['exc']}/MAX(1,{Q}*{aux['vk']}*{K})")
+        wc[f"F{r}"] = f"=MIN(1,{prevF}+D{r}+E{r})"
+        wc[f"G{r}"] = f"={Q}*D{r}*C{r}*{K}"
+        wc[f"H{r}"] = f"=({A}={P['c_contemp']})*{P['c_livre']}*{Q}*C{r}"
+        wc[f"I{r}"] = f"=({A}={P['chaves']})*{aux['falta']}"
+        wc[f"J{r}"] = f"=IF(B{r}>0,{Q}*(1-F{r})*C{r}*{K},0)"
+        # fluxo: operação (W) - obra (F) - ITBI em dinheiro se não usar crédito (G) - mobília (H) - consórcio
+        wc[f"K{r}"] = (f"={FLX}!W{r}-{FLX}!F{r}-(1-{P['c_itbi']})*{FLX}!G{r}-{FLX}!H{r}-G{r}-H{r}-I{r}")
+        wc[f"L{r}"] = f"=K{r}" if idx == 0 else f"=L{r-1}+K{r}"
+        wc[f"M{r}"] = (f'=IF({A}>={P["chaves"]},{FLX}!Z{r}*(1-{P["corret"]})-J{r}'
+                       f'-{P["ir_gc"]}*MAX(0,{FLX}!Z{r}*(1-{P["corret"]})-{aux["custo"]}),"")')
+        wc[f"N{r}"] = f'=IF({A}>={P["chaves"]},L{r}+M{r},"")'
+        wc[f"O{r}"] = f'=IF(AND({A}>={P["ini_op"]},{FLX}!W{r}>=G{r}),{A},"")'
+        wc[f"P{r}"] = f'=IF(AND({A}>={P["ini_op"]},L{r}>=0),{A},"")'
+        wc[f"Q{r}"] = f'=IF(AND({A}>={P["chaves"]},N(N{r})>=0),{A},"")'
+        for col, _, _ in cols:
+            c = wc[f"{col}{r}"]; c.font = f_norm
+            if col in ("A", "O", "P", "Q"): c.number_format = DT
+            elif col == "B": c.number_format = '0;-0;"-"'
+            elif col in ("D", "E", "F"): c.number_format = '0.000%;-0.000%;"-"'
+            else: c.number_format = BRL
+    wc.freeze_panes = f"B{first}"
+    return wc, aux
+
+wcA, auxA = make_consorcio("Consórcio A", "cA_val", "cA_qtd", "Estrutura A (cartas de R$ 100 mil)")
+wcB, auxB = make_consorcio("Consórcio B", "cB_val", "cB_qtd", "Estrutura B (cartas de R$ 300 mil)")
+
+# =====================================================================
+# Aba Comparativo: financiamento direto x consórcio A x consórcio B
+# =====================================================================
+wq = wb.create_sheet("Comparativo", 0)
+wq["A1"] = "Comparativo: financiamento direto x consórcio (SAMPA 135)"; wq["A1"].font = f_title
+wq["A2"] = "Valores nominais em R$. Mesma unidade, obra e operação Airbnb; muda só como o saldo das chaves é pago."
+wq["A2"].font = Font(name=F, size=9, italic=True)
+NA2 = '"Não atinge até dez/58"'
+def R(sheet, col): return f"'{sheet}'!${col}${first}:${col}${last}"
+heads_q = ["Indicador", "Financiamento direto (tabela)", "Consórcio A", "Consórcio B"]
+for i, h in enumerate(heads_q):
+    c = wq.cell(row=4, column=i+1, value=h); c.font = f_head; c.fill = fill_head
+    c.alignment = Alignment(wrap_text=True, horizontal="center", vertical="center")
+wq.row_dimensions[4].height = 32
+fin = "Fluxo mensal"
+def cons_rows(sh, aux):
+    return {
+     "estrutura": f'={P["cA_qtd"] if sh=="Consórcio A" else P["cB_qtd"]}&" carta(s) de R$ "&ROUND({P["cA_val"] if sh=="Consórcio A" else P["cB_val"]}/1000,0)&" mil"',
+     "credito": f"='{sh}'!{aux['cred']}",
+     "sobra": f"='{sh}'!{aux['exc']}-'{sh}'!{aux['falta']}",
+     "obra": f"=-SUMIFS({R(sh,'K')},{R(sh,'A')},\"<=\"&{P['chaves']})",
+     "parc_ini": f"=INDEX({R(sh,'G')},MATCH({P['c_adesao']},{R(sh,'A')},0))",
+     "parc_pos": f"=INDEX({R(sh,'G')},MATCH(EDATE({P['chaves']},1),{R(sh,'A')},0))",
+     "fluxo1": f"=AVERAGEIFS({R(sh,'K')},{R(sh,'A')},\">=\"&{P['ini_op']},{R(sh,'A')},\"<\"&EDATE({P['ini_op']},12))",
+     "aporte": f"=MIN({R(sh,'L')})",
+     "be_op": f"=IF(MIN({R(sh,'O')})=0,{NA2},MIN({R(sh,'O')}))",
+     "be_cx": f"=IF(MIN({R(sh,'P')})=0,{NA2},MIN({R(sh,'P')}))",
+     "be_pat": f"=IF(MIN({R(sh,'Q')})=0,{NA2},MIN({R(sh,'Q')}))",
+     "fim": f"=EDATE({P['c_adesao']},{P['c_prazo']}-1)",
+     "pago": f"=SUM({R(sh,'G')})+SUM({R(sh,'H')})",
+     "p10": f"=INDEX({R(sh,'N')},MATCH(EDATE({P['chaves']},120),{R(sh,'A')},0))",
+     "p20": f"=INDEX({R(sh,'N')},MATCH(EDATE({P['chaves']},240),{R(sh,'A')},0))",
+     "ok": f"='{sh}'!{aux['ok']}",
+    }
+finr = {
+ "estrutura": '="SAC 120x a 12% a.a. + correção"',
+ "credito": f"=INDEX({R(fin,'N')},MATCH({P['chaves']},{R(fin,'A')},0))",
+ "sobra": '="-"',
+ "obra": f"=-SUMIFS({R(fin,'X')},{R(fin,'A')},\"<=\"&{P['chaves']})",
+ "parc_ini": '="-"',
+ "parc_pos": f"=INDEX({R(fin,'M')},MATCH(1,{R(fin,'I')},0))",
+ "fluxo1": f"=AVERAGEIFS({R(fin,'X')},{R(fin,'A')},\">=\"&{P['ini_op']},{R(fin,'A')},\"<\"&EDATE({P['ini_op']},12))",
+ "aporte": f"=MIN({R(fin,'Y')})",
+ "be_op": f"=IF(MIN({R(fin,'AC')})=0,{NA2},MIN({R(fin,'AC')}))",
+ "be_cx": f"=IF(MIN({R(fin,'AD')})=0,{NA2},MIN({R(fin,'AD')}))",
+ "be_pat": f"=IF(MIN({R(fin,'AE')})=0,{NA2},MIN({R(fin,'AE')}))",
+ "fim": f"=EDATE({P['chaves']},{P['prazo']})",
+ "pago": f"=SUM({R(fin,'M')})",
+ "p10": f"=INDEX({R(fin,'AB')},MATCH(EDATE({P['chaves']},120),{R(fin,'A')},0))",
+ "p20": f"=INDEX({R(fin,'AB')},MATCH(EDATE({P['chaves']},240),{R(fin,'A')},0))",
+ "ok": '="-"',
+}
+rowsq = [
+ ("Estrutura", "estrutura", '@'),
+ ("Crédito líquido (consórcio) / saldo financiado (financiamento)", "credito", BRL),
+ ("Crédito que sobra (+) ou falta (−) nas chaves", "sobra", BRL),
+ ("Desembolso até as chaves (obra + consórcio + ITBI/lances)", "obra", BRL),
+ ("Parcela do consórcio na adesão (reduzida)", "parc_ini", BRL),
+ ("Parcela depois das chaves", "parc_pos", BRL),
+ ("Fluxo de caixa médio no 1º ano de aluguel (mês)", "fluxo1", BRL),
+ ("Aporte máximo acumulado", "aporte", BRL),
+ ("Break-even operacional (aluguel cobre a parcela)", "be_op", DT),
+ ("Break-even de caixa (caixa acumulado ≥ 0)", "be_cx", DT),
+ ("Break-even patrimonial (vender devolve tudo)", "be_pat", DT),
+ ("Última parcela", "fim", DT),
+ ("Total pago em parcelas + lances (financiamento ou consórcio)", "pago", BRL),
+ ("Posição se vender 10 anos após as chaves", "p10", BRL),
+ ("Posição se vender 20 anos após as chaves", "p20", BRL),
+ ("Checagem: contemplação até as chaves", "ok", '@'),
+]
+cA, cB = cons_rows("Consórcio A", auxA), cons_rows("Consórcio B", auxB)
+for i, (lab, key, fmt) in enumerate(rowsq):
+    rr = 5 + i
+    wq.cell(row=rr, column=1, value=lab).font = f_norm
+    for j, src_ in enumerate((finr, cA, cB)):
+        c = wq.cell(row=rr, column=2+j, value=src_[key]); c.font = Font(name=F, size=10, bold=key.startswith("be_"))
+        c.number_format = fmt; c.alignment = Alignment(horizontal="right")
+    if key.startswith("be_"):
+        for j in range(4): wq.cell(row=rr, column=1+j).fill = PatternFill("solid", fgColor="F3DFD5")
+rn = 5 + len(rowsq) + 1
+for t in [
+ "Premissas do consórcio na aba Premissas (seção 6). Pontos de atenção:",
+ "• A carta só quita imóvel com habite-se e matrícula individualizada: o crédito paga o saldo nas chaves, não a obra.",
+ "• Cada carta precisa ser contemplada até as chaves. Com 5 cartas são 5 contemplações; com 2, são 2. Sem contemplação a tempo, o saldo teria de ser pago de outra forma.",
+ "• Lance embutido reduz o crédito: com 30%, cada R$ 100 mil de carta libera R$ 70 mil (corrigidos).",
+ "• Parcelas do consórcio começam na adesão (jan/27), somando-se às parcelas da obra.",
+ "• Não inclui seguro prestamista nem rendimento do crédito parado entre a contemplação e as chaves.",
+]:
+    wq.cell(row=rn, column=1, value=t).font = Font(name=F, size=9, bold=t.endswith(":")); rn += 1
+wq.column_dimensions["A"].width = 60
+for col in "BCD": wq.column_dimensions[col].width = 24
+wq.freeze_panes = "B5"
+wq["C5"] = cA["estrutura"]; wq["D5"] = cB["estrutura"]
+
 # =====================================================================
 # Aba 4: Resumo
 # =====================================================================
-ws = wb.create_sheet("Resumo", 0)
-ws["A1"] = "SAMPA 135 - Viabilidade e break-even do studio para Airbnb"; ws["A1"].font = f_title
+ws = wb.create_sheet("Resumo financiamento", 1)
+ws["A1"] = "SAMPA 135 - Financiamento direto: viabilidade e break-even"; ws["A1"].font = f_title
 ws["A2"] = "Valores nominais em R$. Todos os números vêm das abas Premissas e Fluxo mensal; mude as premissas e tudo recalcula."
 ws["A2"].font = Font(name=F, size=9, italic=True)
 NA = '"Não atinge até dez/58"'
