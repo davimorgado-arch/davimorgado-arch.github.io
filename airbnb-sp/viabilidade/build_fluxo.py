@@ -159,6 +159,13 @@ inp("cA_qtd", "Estrutura A: quantidade de cartas", 5, '0', "5 cartas cobrem o sa
 inp("cB_val", "Estrutura B: valor de cada carta", 300000, BRL, "Informado pelo usuário: cartas de R$ 300 mil", key_assumption=True)
 inp("cB_qtd", "Estrutura B: quantidade de cartas", 2, '0', "1 carta não cobre o saldo; 2 cartas sobram crédito, que abate o plano")
 
+section("7. Alternativa: aplicar o mesmo dinheiro (carteira espelho)")
+inp("cdi27", "CDI médio 2027 (a.a.)", 0.125, PCT, "Focus out/26: Selic 13,75% fim/26 e 12% fim/27", key_assumption=True)
+inp("cdi28", "CDI médio 2028 (a.a.)", 0.11, PCT, "Focus: Selic 10,5% fim/28")
+inp("cdi29", "CDI médio 2029 em diante (a.a.)", 0.10, PCT, "Focus: Selic 10% em 2029; mantido no longo prazo", key_assumption=True)
+inp("ipca_real", "Tesouro IPCA+: juro real (a.a.)", 0.065, PCT, "IPCA+ 2045 ~7,2% hoje (caiu no pregão de 05/10/26); 6,5% conservador. IPCA = inflação da seção 4", key_assumption=True)
+inp("ir_aplic", "IR sobre rendimento da aplicação", 0.15, PCT, "Tabela regressiva acima de 2 anos. LCI/LCA isentas rendem ~90% do CDI (resultado parecido)")
+
 section("Taxas mensais equivalentes (calculadas)")
 for k, lab in [("incc", "INCC"), ("juros", "Juros"), ("ipca_fin", "Correção do saldo"), ("infl", "Inflação"), ("valoriz", "Valorização")]:
     inp(k + "_m", f"{lab} ao mês", f"=(1+{P[k]})^(1/12)-1", '0.000%', formula=True)
@@ -455,6 +462,76 @@ wq.column_dimensions["A"].width = 60
 for col in "BCD": wq.column_dimensions[col].width = 24
 wq.freeze_panes = "B5"
 wq["C5"] = cA["estrutura"]; wq["D5"] = cB["estrutura"]
+
+
+# =====================================================================
+# Aba: Imóvel x Aplicação (carteira espelho)
+# =====================================================================
+wi = wb.create_sheet("Imóvel x Aplicação")
+wi["A1"] = "Imóvel x aplicação financeira: carteira espelho"; wi["A1"].font = f_title
+wi["A2"] = ("Cada real que o imóvel tira do bolso é aplicado; quando o imóvel devolve dinheiro, a aplicação resgata o mesmo valor. "
+            "Mesmo esforço de caixa nos dois mundos. Compara-se o patrimônio: imóvel vendido (líquido) x saldo aplicado (líquido de IR).")
+wi["A2"].font = Font(name=F, size=9, italic=True)
+icols = [("A","Mês",9),("B","CDI do ano (a.a.)",9),("C","CDI líquido (mês)",9),("D","IPCA+ líquido (mês)",9)]
+scen = [("Financiamento", "Fluxo mensal", "X", "AA"), ("Consórcio A", "Consórcio A", "K", "M"), ("Consórcio B", "Consórcio B", "K", "M")]
+letters = ["E","F","G","H","I","J","K","L","M","N","O","P"]
+k = 0
+for nm, sh, fcol, pcol in scen:
+    for suf, w in (("fluxo do imóvel",12),("saldo em CDI",13),("saldo em IPCA+",13),("imóvel: patrimônio se vender",14)):
+        icols.append((letters[k], f"{nm}: {suf}", w)); k += 1
+for col, h, w in icols:
+    c = wi[f"{col}{HR}"]; c.value = h; c.font = f_head; c.fill = fill_head
+    c.alignment = Alignment(wrap_text=True, vertical="center", horizontal="center")
+    wi.column_dimensions[col].width = w
+wi.row_dimensions[HR].height = 66
+for idx in range(len(months)):
+    r = first + idx; A = f"$A{r}"
+    wi[f"A{r}"] = f"='Fluxo mensal'!A{r}"
+    wi[f"B{r}"] = f"=IF(YEAR({A})<=2027,{P['cdi27']},IF(YEAR({A})=2028,{P['cdi28']},{P['cdi29']}))"
+    wi[f"C{r}"] = f"=(1+B{r}*(1-{P['ir_aplic']}))^(1/12)-1"
+    wi[f"D{r}"] = f"=(1+((1+{P['ipca_real']})*(1+{P['infl']})-1)*(1-{P['ir_aplic']}))^(1/12)-1"
+    k = 0
+    for nm, sh, fcol, pcol in scen:
+        cf, cc, ci, cp = letters[k:k+4]
+        wi[f"{cf}{r}"] = f"='{sh}'!{fcol}{r}"
+        prevc = f"{cc}{r-1}" if idx > 0 else "0"; previ = f"{ci}{r-1}" if idx > 0 else "0"
+        wi[f"{cc}{r}"] = f"={prevc}*(1+$C{r})-{cf}{r}"
+        wi[f"{ci}{r}"] = f"={previ}*(1+$D{r})-{cf}{r}"
+        wi[f"{cp}{r}"] = f"='{sh}'!{pcol}{r}"
+        k += 4
+    for col, _, _ in icols:
+        c = wi[f"{col}{r}"]; c.font = f_norm
+        c.number_format = DT if col == "A" else ('0.00%' if col in "BCD" else BRL)
+wi.freeze_panes = f"B{first}"
+
+# Quadro-resumo na aba Comparativo
+rq = wq.max_row + 2
+wq.cell(row=rq, column=1, value="Imóvel x aplicação: patrimônio no horizonte (mesmo dinheiro tirado do bolso)").font = f_bold
+rq += 1
+hdr = ["Horizonte / cenário", "Imóvel (vendido, líquido)", "Aplicação CDI (líquida)", "Aplicação IPCA+ (líquida)", "Melhor opção"]
+for j, h in enumerate(hdr):
+    c = wq.cell(row=rq, column=1+j, value=h); c.font = f_head; c.fill = fill_head
+    c.alignment = Alignment(wrap_text=True, horizontal="center", vertical="center")
+wq.row_dimensions[rq].height = 30
+rq += 1
+IA = "'Imóvel x Aplicação'"
+def RI(col): return f"{IA}!${col}${first}:${col}${last}"
+cols_s = {"Financiamento": ("F","G","H"), "Consórcio A": ("J","K","L"), "Consórcio B": ("N","O","P")}
+for anos in (10, 15, 20, 30):
+    for nm, (cc, ci, cp) in cols_s.items():
+        dt = f"EDATE({P['chaves']},{anos*12})" if anos < 30 else f"DATE(2058,8,1)"
+        wq.cell(row=rq, column=1, value=f"{anos} anos após as chaves · {nm}").font = f_norm
+        fimv = f"=INDEX({RI(cp)},MATCH({dt},{RI('A')},0))"
+        fcdi = f"=INDEX({RI(cc)},MATCH({dt},{RI('A')},0))"
+        fipc = f"=INDEX({RI(ci)},MATCH({dt},{RI('A')},0))"
+        for j, fml in enumerate((fimv, fcdi, fipc)):
+            c = wq.cell(row=rq, column=2+j, value=fml); c.font = f_norm; c.number_format = BRL
+        wq.cell(row=rq, column=5, value=f'=IF(B{rq}>=MAX(C{rq},D{rq}),"Imóvel",IF(C{rq}>=D{rq},"CDI","IPCA+"))').font = f_bold
+        if nm == "Financiamento":
+            for j in range(5): wq.cell(row=rq, column=1+j).border = Border(top=thin)
+        rq += 1
+wq.cell(row=rq+1, column=1, value="Aplicação: saldo líquido de IR (15%). Imóvel: valor de mercado - corretagem - saldo devedor - IR sobre ganho de capital. Não considera aluguel imputado nem liquidez.").font = Font(name=F, size=9)
+wq.column_dimensions["E"].width = 14
 
 # =====================================================================
 # Aba 4: Resumo
