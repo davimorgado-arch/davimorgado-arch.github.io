@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Política de Privacidade — Edge Deck</title>
+<style>
+  :root { --tinta:#E9E7F5; --suave:#A7A3C2; --fundo:#0E0F1F; --cartao:#171933; --borda:#2A2D55; --destaque:#A855F7; --link:#7DD3FC; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fundo); color:var(--tinta);
+         font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  .wrap { max-width:740px; margin:0 auto; padding:40px 22px 80px; }
+  h1 { font-size:30px; margin:0 0 4px; }
+  h2 { font-size:20px; margin:34px 0 8px; }
+  h2::after { content:""; display:block; width:36px; height:5px; border-radius:3px; background:var(--destaque); margin-top:6px; }
+  .sub { color:var(--suave); font-size:14px; margin-bottom:28px; }
+  a { color:var(--link); }
+  ul { padding-left:20px; }
+  li { margin:6px 0; }
+  .box { background:var(--cartao); border:1px solid var(--borda); border-radius:14px; padding:16px 18px; margin:18px 0; }
+  footer { margin-top:40px; color:var(--suave); font-size:13px; border-top:1px solid var(--borda); padding-top:16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Política de Privacidade — Edge Deck</h1>
+  <div class="sub">Última atualização: 21 de outubro de 2026</div>
+
+  <p>O <strong>Edge Deck</strong> transforma o iPhone num painel para o Mac: botões para abrir apps e atalhos,
+  monitoramento do Mac, música tocando, vídeos transferidos do Mac e a agenda da semana.
+  O responsável é <strong>Davi Morgado</strong>, desenvolvedor do app
+  (contato: <a href="mailto:davi.morgado@gmail.com">davi.morgado@gmail.com</a>).</p>
+
+  <div class="box">
+    <strong>Em resumo:</strong> o Edge Deck não tem servidor próprio, não tem anúncios e não usa ferramentas de análise.
+    O iPhone fala só com o <strong>seu Mac</strong>, na sua rede local, e, se você conectar a conta Google,
+    direto com o <strong>Google</strong>, apenas para ler a sua agenda e as suas tarefas.
+  </div>
+
+  <h2>Conta Google (agenda e tarefas)</h2>
+  <p>Se você tocar em “Conectar ao Google Agenda”, o app pede ao Google acesso <strong>somente de leitura</strong> a:</p>
+  <ul>
+    <li><strong>Google Agenda</strong> (<code>calendar.readonly</code>): lista de calendários e eventos da semana exibida;</li>
+    <li><strong>Google Tasks</strong> (<code>tasks.readonly</code>): tarefas com data na semana exibida.</li>
+  </ul>
+  <p>Esses dados são buscados pelo iPhone diretamente nas APIs do Google, mostrados na tela e mantidos só na memória do app.
+  Eles <strong>não são enviados ao desenvolvedor nem a terceiros</strong>, não são vendidos e não são usados para publicidade
+  nem para treinar modelos de IA. O app nunca cria, altera ou apaga eventos ou tarefas.
+  A chave de acesso fornecida pelo Google fica guardada no <strong>Keychain do seu iPhone</strong>.</p>
+  <p>Você pode desconectar a qualquer momento em Ajustes do Edge Deck › “Desconectar conta Google”, ou remover o acesso em
+  <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</p>
+  <p>O uso das informações recebidas das APIs do Google segue a
+  <a href="https://developers.google.com/terms/api-services-user-data-policy">Política de dados do usuário dos serviços de API do Google</a>,
+  incluindo os requisitos de uso limitado.</p>
+
+  <h2>Comunicação com o Mac</h2>
+  <p>O iPhone e o app companheiro do Mac conversam pela <strong>rede local</strong> (ou por endereço IP que você informar),
+  depois de um pareamento com código de 6 dígitos. Trafegam por essa conexão: comandos dos botões, dados de uso do Mac
+  (CPU, GPU, memória, rede, disco, bateria, app em foco), a música tocando e a imagem de vídeos que você transfere.
+  Nada disso sai da sua rede para servidores do desenvolvedor.</p>
+
+  <h2>No Mac</h2>
+  <p>O app companheiro lê o que está tocando no YouTube Music (Chrome), Spotify ou Música e detecta vídeos do YouTube abertos
+  no Chrome, apenas para mostrar no iPhone. As permissões de Acessibilidade, Automação e Gravação de Tela são usadas só para
+  executar os comandos que você toca e para transmitir o vídeo que você escolher.</p>
+
+  <h2>Contato</h2>
+  <p>Dúvidas ou pedidos sobre privacidade: <a href="mailto:davi.morgado@gmail.com">davi.morgado@gmail.com</a>.</p>
+
+  <footer>Edge Deck · Davi Morgado</footer>
+</div>
+</body>
+</html>
