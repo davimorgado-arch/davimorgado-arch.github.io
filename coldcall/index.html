@@ -139,7 +139,7 @@
 // ===== Configuração =====
 // Também aceitam ?agent=...&api=... na URL (útil para testes).
 const qs = new URLSearchParams(location.search);
-const AGENT_ID = qs.get("agent") || "";   // agente único da ElevenLabs
+const AGENT_ID = qs.get("agent") || "agent_1301m6210yfwfrcb95egc9w0jvfr";   // agente único da ElevenLabs
 const API_URL  = qs.get("api")   || "";   // URL do Apps Script publicado como app da web
 const MIN_RINGS = 2;                      // toques mínimos antes do lead atender
 const MAX_RINGS = 3;                      // sorteia entre MIN e MAX para não ficar previsível
