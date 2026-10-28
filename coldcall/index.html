@@ -12,53 +12,54 @@
   }
   * { box-sizing:border-box; }
   body {
-    margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
-    background:var(--bg); color:var(--text); padding:16px;
+    margin:0; min-height:100vh; background:var(--bg); color:var(--text); padding:32px 16px;
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   }
-  .phone {
-    width:100%; max-width:400px; background:var(--card); border:1px solid var(--line);
-    border-radius:28px; padding:32px 24px; text-align:center;
-  }
+  .wrap { max-width:920px; margin:0 auto; }
   .screen { display:none; }
   .screen.on { display:block; }
-  h1 { font-size:22px; margin:0 0 6px; }
-  .sub { color:var(--muted); font-size:14px; margin:0 0 20px; line-height:1.5; }
-  input[type=text] {
-    width:100%; padding:14px; border-radius:12px; border:1px solid var(--line);
-    background:var(--bg); color:var(--text); font-size:16px; margin-bottom:16px;
+  h1 { font-size:26px; margin:0 0 6px; }
+  .sub { color:var(--muted); font-size:15px; margin:0 0 24px; line-height:1.5; }
+  .warn { color:#FCA5A5; font-size:14px; margin:12px 0 0; }
+
+  /* Identificação */
+  .ident { display:flex; flex-wrap:wrap; gap:16px; align-items:center; margin-bottom:24px; }
+  .ident input[type=text] {
+    flex:1 1 240px; padding:14px; border-radius:12px; border:1px solid var(--line);
+    background:var(--card); color:var(--text); font-size:16px;
   }
+  .consent { flex:1 1 320px; display:flex; gap:10px; align-items:flex-start; font-size:13px; color:var(--muted); line-height:1.4; cursor:pointer; }
+  .consent input { margin-top:2px; width:18px; height:18px; flex:none; }
+
+  /* Cards de desafio */
+  .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:20px; }
+  .ch {
+    background:var(--card); border:1px solid var(--line); border-radius:20px; padding:22px;
+    display:flex; flex-direction:column; gap:14px;
+  }
+  .ch-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  .ch h2 { font-size:19px; margin:0; }
+  .done { font-size:12px; color:var(--green); border:1px solid var(--green); border-radius:999px; padding:3px 10px; white-space:nowrap; }
+  .ch p { margin:0; color:var(--muted); font-size:14px; line-height:1.5; }
+  .box { background:var(--bg); border:1px solid var(--line); border-radius:14px; padding:12px 14px; font-size:14px; line-height:1.55; }
+  .box.goal { border-color:var(--accent); }
+  .lbl { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.05em; margin:0 0 6px; }
+  .ficha { white-space:pre-line; }
+  .ch-actions { margin-top:auto; display:flex; align-items:center; gap:14px; }
   .btn {
     border:0; border-radius:999px; font-size:16px; font-weight:600; cursor:pointer;
     padding:14px 28px; color:#fff;
   }
   .btn:disabled { opacity:.4; cursor:not-allowed; }
-  .btn-green { background:var(--green); width:100%; }
+  .btn-green { background:var(--green); }
   .btn-ghost { background:transparent; border:1px solid var(--line); color:var(--text); }
-  .link { background:none; border:0; color:var(--muted); font-size:14px; cursor:pointer; margin-top:14px; text-decoration:underline; }
+  .link { background:none; border:0; color:var(--muted); font-size:13px; cursor:pointer; text-decoration:underline; }
 
-  /* Seleção de desafio */
-  .choice {
-    display:block; width:100%; text-align:left; background:var(--bg); color:var(--text);
-    border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-bottom:10px; cursor:pointer;
+  /* Ligação e fim (cartão central estilo celular) */
+  .phone {
+    max-width:400px; margin:40px auto 0; background:var(--card); border:1px solid var(--line);
+    border-radius:28px; padding:32px 24px; text-align:center;
   }
-  .choice.sel { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
-  .choice b { display:block; font-size:15px; margin-bottom:4px; }
-  .choice span { color:var(--muted); font-size:13px; line-height:1.4; }
-
-  /* Aceite de gravação */
-  .consent { display:flex; gap:10px; align-items:flex-start; text-align:left; font-size:13px; color:var(--muted); margin:6px 0 16px; line-height:1.4; cursor:pointer; }
-  .consent input { margin-top:2px; width:18px; height:18px; flex:none; }
-
-  /* Ficha do lead e gabarito */
-  .card {
-    text-align:left; background:var(--bg); border:1px solid var(--line); border-radius:14px;
-    padding:14px 16px; margin-bottom:16px; font-size:14px; line-height:1.55; white-space:pre-line;
-  }
-  .card .lbl { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.04em; margin:0 0 6px; white-space:normal; }
-  .goal { border-color:var(--accent); white-space:normal; }
-
-  /* Tela de ligação */
   .avatar {
     width:96px; height:96px; border-radius:50%; margin:8px auto 16px; background:#2F3742;
     display:flex; align-items:center; justify-content:center; font-size:40px; transition:box-shadow .2s;
@@ -75,9 +76,8 @@
   .round.mute { background:#2F3742; color:#fff; }
   .round.mute.active { background:#fff; color:#111; }
   .round.hang { background:var(--red); color:#fff; }
-
-  .warn { color:#FCA5A5; font-size:13px; margin-top:12px; }
   .result { font-size:15px; color:var(--muted); margin:0 0 16px; line-height:1.6; }
+  .phone .box { text-align:left; margin-bottom:16px; white-space:pre-line; }
   details { text-align:left; margin:0 0 16px; }
   summary { cursor:pointer; color:var(--muted); font-size:14px; }
   .transcript { max-height:300px; overflow-y:auto; margin-top:10px; font-size:14px; line-height:1.5; }
@@ -86,62 +86,49 @@
 </style>
 </head>
 <body>
-<div class="phone">
+<div class="wrap">
 
-  <!-- Tela 1: nome, aceite e escolha do desafio -->
+  <!-- Tela 1: identificação + um card por desafio -->
   <div id="s-start" class="screen on">
     <h1>Simulador de Cold Call</h1>
-    <p class="sub">Use fone com microfone. Escolha o desafio, leia a ficha do lead e ligue.</p>
-    <input id="name" type="text" placeholder="Seu nome" autocomplete="off" maxlength="40">
-    <button class="choice sel" data-ch="1">
-      <b>Desafio 1 · Lead frio</b>
-      <span>Você liga para a empresa. Objetivo: descobrir quem é o responsável pela energia elétrica e conseguir o contato dele.</span>
-    </button>
-    <button class="choice" data-ch="2">
-      <b>Desafio 2 · Primeiro contato com o responsável</b>
-      <span>Você já tem o nome do responsável. Objetivo: entender a situação energética da empresa e gerar interesse num próximo passo.</span>
-    </button>
-    <label class="consent">
-      <input id="consent" type="checkbox">
-      <span>Estou ciente de que a ligação será gravada e poderá ser usada como material de estudo.</span>
-    </label>
-    <button id="btn-next" class="btn btn-green" disabled>Carregando…</button>
+    <p class="sub">Use fone com microfone. Escolha um desafio, leia a ficha do lead e clique em Ligar. Os desafios podem ser feitos em qualquer ordem.</p>
+    <div class="ident">
+      <input id="name" type="text" placeholder="Seu nome" autocomplete="off" maxlength="40">
+      <label class="consent">
+        <input id="consent" type="checkbox">
+        <span>Estou ciente de que as ligações serão gravadas e poderão ser usadas como material de estudo.</span>
+      </label>
+    </div>
+    <div id="grid" class="grid"><p class="sub">Carregando desafios…</p></div>
     <p id="start-err" class="warn" hidden></p>
   </div>
 
-  <!-- Tela 2: ficha do bot sorteado -->
-  <div id="s-brief" class="screen">
-    <h1 id="brief-title"></h1>
-    <p class="sub">Isto é tudo o que você sabe antes de ligar.</p>
-    <div class="card"><p class="lbl">Ficha do lead</p><div id="brief"></div></div>
-    <div id="goal" class="card goal"></div>
-    <button id="btn-call" class="btn btn-green">📞 Ligar</button>
-    <button id="btn-reroll" class="link">Sortear outro lead</button>
-    <button id="btn-back" class="link">Voltar</button>
-  </div>
-
-  <!-- Tela 3: ligação (chamando / em andamento) -->
+  <!-- Tela 2: ligação (chamando / em andamento) -->
   <div id="s-call" class="screen">
-    <div id="avatar" class="avatar">👤</div>
-    <p id="call-who" class="who">Lead</p>
-    <p id="state" class="state">Chamando…</p>
-    <div class="controls">
-      <button id="btn-mute" class="round mute" title="Mudo" disabled>🎙️</button>
-      <button id="btn-hang" class="round hang" title="Desligar">✆</button>
+    <div class="phone">
+      <div id="avatar" class="avatar">👤</div>
+      <p id="call-who" class="who">Lead</p>
+      <p id="state" class="state">Chamando…</p>
+      <div class="controls">
+        <button id="btn-mute" class="round mute" title="Mudo" disabled>🎙️</button>
+        <button id="btn-hang" class="round hang" title="Desligar">✆</button>
+      </div>
     </div>
   </div>
 
-  <!-- Tela 4: fim da ligação -->
+  <!-- Tela 3: fim da ligação -->
   <div id="s-end" class="screen">
-    <h1>Ligação encerrada</h1>
-    <p id="result" class="result"></p>
-    <div class="card"><p class="lbl">Gabarito</p><div id="answer"></div></div>
-    <p class="sub">A pontuação sai na planilha do facilitador em 1–2 minutos.</p>
-    <details>
-      <summary>Ver transcrição</summary>
-      <div id="transcript" class="transcript"></div>
-    </details>
-    <button id="btn-again" class="btn btn-ghost">Nova ligação</button>
+    <div class="phone">
+      <h1>Ligação encerrada</h1>
+      <p id="result" class="result"></p>
+      <div class="box"><p class="lbl">Gabarito</p><div id="answer"></div></div>
+      <p class="sub">Sua pontuação é calculada automaticamente e entra no ranking.</p>
+      <details>
+        <summary>Ver transcrição</summary>
+        <div id="transcript" class="transcript"></div>
+      </details>
+      <button id="btn-again" class="btn btn-ghost">Voltar aos desafios</button>
+    </div>
   </div>
 
 </div>
@@ -150,29 +137,18 @@
 <script src="https://cdn.jsdelivr.net/npm/@elevenlabs/client@1.27.0/dist/lib.iife.js"></script>
 <script>
 // ===== Configuração =====
-// Também aceitam ?agent=...&bots=... na URL (útil para testes).
+// Também aceitam ?agent=...&api=... na URL (útil para testes).
 const qs = new URLSearchParams(location.search);
 const AGENT_ID = qs.get("agent") || "";   // agente único da ElevenLabs
-const BOTS_URL = qs.get("bots")  || "";   // URL do Apps Script publicado como app da web
+const API_URL  = qs.get("api")   || "";   // URL do Apps Script publicado como app da web
 const MIN_RINGS = 2;                      // toques mínimos antes do lead atender
 const MAX_RINGS = 3;                      // sorteia entre MIN e MAX para não ficar previsível
 
-// Contexto de cada desafio, enviado ao agente junto com o roteiro do bot
-const CONTEXTO = {
-  "1": "Você atende o telefone da empresa. Quem liga é um vendedor de uma empresa de gestão de energia / mercado livre. O objetivo dele é descobrir quem é o responsável pela energia elétrica e conseguir um contato direto. Você não decide nada sobre energia.",
-  "2": "Você é o responsável pela energia na empresa e está recebendo a PRIMEIRA ligação deste vendedor de gestão de energia / mercado livre. Você não conhece a empresa dele. O objetivo dele é entender sua situação energética e sair com um próximo passo (reunião ou envio de fatura).",
-};
-const GOALS = {
-  "1": "Descobrir <b>quem é o responsável pela energia elétrica</b> (nome e cargo) e conseguir <b>um contato direto</b>. Não é para vender nada.",
-  "2": "Descobrir a <b>situação energética</b> (cativo ou livre, contrato, vencimento, quem faz a gestão, tamanho da conta) e sair com <b>um próximo passo concreto</b> (reunião ou envio de fatura).",
-};
-const TITLES = { "1": "Desafio 1 · Lead frio", "2": "Desafio 2 · Primeiro contato" };
-
 // ===== Estado =====
-let bots = [];                 // bots ativos vindos da planilha
-let challenge = "1";           // desafio escolhido
-let bot = null;                // bot sorteado
-let lastId = "";               // evita sortear o mesmo bot duas vezes seguidas
+let desafios = [];             // desafios ativos (aba Desafios)
+let bots = [];                 // bots ativos (aba Bots)
+const sorteado = {};           // desafio -> bot sorteado exibido no card
+let atual = null;              // { desafio, bot } da ligação em andamento
 let conversation = null;       // sessão ativa da ElevenLabs
 let ringer = null;             // controle do toque de chamada
 let startedAt = 0;             // quando o lead atendeu (ms)
@@ -186,60 +162,69 @@ const show = id => document.querySelectorAll(".screen").forEach(s => s.classList
 const fmt = ms => { const s = Math.floor(ms / 1000); return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`; };
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const periodo = () => new Date().getHours() < 12 ? "bom dia" : "boa tarde";
-const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+const nome = () => $("name").value.trim();
+
+// Desafios já feitos por este vendedor neste navegador (só para o selo "feito")
+function feitos() { try { return JSON.parse(localStorage.getItem("cc-feitos-" + nome()) || "{}"); } catch (e) { return {}; } }
+function marcarFeito(num) {
+  const f = feitos(); f[num] = (f[num] || 0) + 1;
+  try { localStorage.setItem("cc-feitos-" + nome(), JSON.stringify(f)); } catch (e) {}
+}
 
 try { $("name").value = localStorage.getItem("cc-name") || ""; } catch (e) {}
+// Atualiza os selos "feito" enquanto digita (no "change" o redesenho engoliria o clique em Ligar)
+$("name").addEventListener("input", () => { if (desafios.length) renderCards(); });
 
-// ===== Carrega os bots da planilha =====
-async function loadBots() {
-  const err = msg => { $("btn-next").textContent = "Indisponível"; $("start-err").textContent = msg; $("start-err").hidden = false; };
-  if (!AGENT_ID || !BOTS_URL) return err("Simulador não configurado (agente ou planilha).");
+// ===== Carrega desafios e bots da planilha =====
+async function load() {
+  const err = msg => { $("grid").innerHTML = ""; $("start-err").textContent = msg; $("start-err").hidden = false; };
+  if (!AGENT_ID || !API_URL) return err("Simulador não configurado (agente ou planilha).");
   try {
-    const r = await fetch(BOTS_URL);
-    const data = await r.json();
+    const data = await (await fetch(API_URL)).json();
+    desafios = data.desafios || [];
     bots = data.bots || [];
-    if (!bots.length) return err("Nenhum bot ativo na planilha.");
-    $("btn-next").textContent = "Sortear lead";
-    $("btn-next").disabled = false;
+    // Só mostra desafios que têm pelo menos um bot ativo
+    desafios = desafios.filter(d => bots.some(b => String(b.desafio) === String(d.numero)));
+    if (!desafios.length) return err("Nenhum desafio com bots ativos na planilha.");
+    desafios.forEach(d => sortear(d.numero));
+    renderCards();
   } catch (e) {
     console.error(e);
-    err("Não foi possível carregar os bots da planilha.");
+    err("Não foi possível carregar os desafios da planilha.");
   }
 }
-loadBots();
+load();
 
-// ===== Escolha do desafio e sorteio =====
-document.querySelectorAll(".choice").forEach(el => el.onclick = () => {
-  challenge = el.dataset.ch;
-  document.querySelectorAll(".choice").forEach(c => c.classList.toggle("sel", c === el));
-});
-
-function draw() {
-  const list = bots.filter(b => String(b.desafio) === challenge);
-  if (!list.length) { $("start-err").textContent = "Nenhum bot ativo neste desafio."; $("start-err").hidden = false; show("s-start"); return; }
+// Sorteia um bot do desafio, evitando repetir o último exibido
+function sortear(num) {
+  const lista = bots.filter(b => String(b.desafio) === String(num));
+  const anterior = sorteado[num] && sorteado[num].id;
   let pick;
-  do { pick = list[Math.floor(Math.random() * list.length)]; } while (list.length > 1 && pick.id === lastId);
-  bot = pick; lastId = pick.id;
-  $("brief-title").textContent = TITLES[challenge];
-  $("brief").textContent = bot.ficha;   // texto livre da planilha (quebras de linha preservadas)
-  $("goal").innerHTML = `<p class="lbl">Seu objetivo</p><p>${GOALS[challenge]}</p>`;
-  show("s-brief");
+  do { pick = lista[Math.floor(Math.random() * lista.length)]; } while (lista.length > 1 && pick.id === anterior);
+  sorteado[num] = pick;
 }
 
-$("btn-next").onclick = () => {
-  const name = $("name").value.trim();
-  if (!name) { $("name").focus(); return; }
-  if (!$("consent").checked) {
-    $("start-err").textContent = "Marque o aceite de gravação para continuar.";
-    $("start-err").hidden = false;
-    return;
-  }
-  $("start-err").hidden = true;
-  try { localStorage.setItem("cc-name", name); } catch (e) {}
-  draw();
-};
-$("btn-reroll").onclick = draw;
-$("btn-back").onclick = () => show("s-start");
+function renderCards() {
+  const f = feitos();
+  $("grid").innerHTML = desafios.map(d => {
+    const b = sorteado[d.numero];
+    const selo = f[d.numero] ? `<span class="done">✓ feito${f[d.numero] > 1 ? " · " + f[d.numero] + "x" : ""}</span>` : "";
+    return `
+      <div class="ch">
+        <div class="ch-head"><h2>${esc(d.titulo)}</h2>${selo}</div>
+        <p>${esc(d.descricao)}</p>
+        <div class="box goal"><p class="lbl">Seu objetivo</p>${esc(d.objetivo)}</div>
+        <div class="box"><p class="lbl">Ficha do lead</p><div class="ficha">${esc(b.ficha)}</div></div>
+        <div class="ch-actions">
+          <button class="btn btn-green" data-call="${esc(d.numero)}">📞 Ligar</button>
+          <button class="link" data-reroll="${esc(d.numero)}">Sortear outro lead</button>
+        </div>
+      </div>`;
+  }).join("");
+  document.querySelectorAll("[data-call]").forEach(el => el.onclick = () => call(el.dataset.call));
+  document.querySelectorAll("[data-reroll]").forEach(el => el.onclick = () => { sortear(el.dataset.reroll); renderCards(); });
+}
 
 // ===== Toque de chamada (padrão brasileiro: 425 Hz) gerado no navegador =====
 function startRinging() {
@@ -263,15 +248,26 @@ function startRinging() {
 }
 
 // ===== Fluxo da ligação =====
-async function call() {
+async function call(num) {
+  // Validações: nome e aceite de gravação
+  const msg = !nome() ? "Digite seu nome antes de ligar." : !$("consent").checked ? "Marque o aceite de gravação antes de ligar." : "";
+  if (msg) { $("start-err").textContent = msg; $("start-err").hidden = false; (nome() ? $("consent") : $("name")).focus(); return; }
+  $("start-err").hidden = true;
+  try { localStorage.setItem("cc-name", nome()); } catch (e) {}
+
   // Pede o microfone antes de tocar, para o pop-up de permissão não aparecer no meio da ligação
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     stream.getTracks().forEach(t => t.stop());
   } catch (e) {
-    alert("Sem acesso ao microfone. Libere a permissão no navegador.");
+    $("start-err").textContent = "Sem acesso ao microfone. Libere a permissão no navegador.";
+    $("start-err").hidden = false;
     return;
   }
+
+  const desafio = desafios.find(d => String(d.numero) === String(num));
+  const bot = sorteado[num];
+  atual = { desafio, bot };
 
   // Zera estado da ligação anterior
   lines = []; endReason = ""; muted = false; startedAt = 0;
@@ -287,26 +283,25 @@ async function call() {
   if (!ringer) return;           // vendedor desistiu enquanto chamava
 
   // Variáveis do prompt do agente. bot_id e desafio também servem para o Apps Script pontuar depois.
-  const vars = {
-    bot_id: bot.id,
-    desafio: challenge,
-    contexto_desafio: CONTEXTO[challenge],
-    roteiro: bot.roteiro,
-    saudacao: String(bot.saudacao || "Alô?").replace("{periodo}", periodo()),
-  };
   const options = {
     agentId: AGENT_ID,
     connectionType: "webrtc",
-    userId: $("name").value.trim(),   // identifica o vendedor no histórico e na pontuação
-    dynamicVariables: vars,
+    userId: nome(),              // identifica o vendedor no histórico e na pontuação
+    dynamicVariables: {
+      bot_id: String(bot.id),
+      desafio: String(desafio.numero),
+      contexto_desafio: String(desafio.contexto),
+      roteiro: String(bot.roteiro),
+      saudacao: String(bot.saudacao || "Alô?").replace("{periodo}", periodo()),
+    },
     onConnect: onAnswered,
     onDisconnect: d => { endReason = endReason || d.reason; finish(); },
-    onError: msg => { console.error(msg); endReason = endReason || "error"; },
+    onError: m => { console.error(m); endReason = endReason || "error"; },
     onModeChange: ({ mode }) => $("avatar").classList.toggle("speaking", mode === "speaking"),
     onMessage: m => lines.push({ role: m.role, text: m.message }),
   };
   // Voz específica do bot (exige override de voz liberado no agente)
-  if (bot.voz_id) options.overrides = { tts: { voiceId: bot.voz_id } };
+  if (bot.voz_id) options.overrides = { tts: { voiceId: String(bot.voz_id) } };
 
   try {
     conversation = await ElevenLabsClient.Conversation.startSession(options);
@@ -351,18 +346,23 @@ function finish() {
     error: "A ligação caiu (erro de conexão).",
   };
   $("result").innerHTML = `${reasons[endReason] || reasons.error}<br>Duração: <b>${dur}</b>`;
-  $("answer").textContent = bot ? (bot.gabarito || "—") : "";
+  $("answer").textContent = atual ? (atual.bot.gabarito || "—") : "";
+  // Conta como "feito" só se a ligação foi atendida e houve fala do vendedor
+  if (atual && startedAt && lines.some(l => l.role === "user")) marcarFeito(atual.desafio.numero);
 
   $("transcript").innerHTML = lines.length
-    ? lines.map(l => `<p><b>${l.role === "agent" ? "Lead" : "Você"}:</b> ${escapeHtml(l.text)}</p>`).join("")
+    ? lines.map(l => `<p><b>${l.role === "agent" ? "Lead" : "Você"}:</b> ${esc(l.text)}</p>`).join("")
     : "<p>Sem transcrição.</p>";
   show("s-end");
 }
 
 // ===== Botões =====
-$("btn-call").onclick = call;
 $("btn-hang").onclick = hangUp;
-$("btn-again").onclick = () => show("s-start");
+$("btn-again").onclick = () => {
+  if (atual) sortear(atual.desafio.numero);   // próximo lead desse desafio é outro
+  renderCards();
+  show("s-start");
+};
 $("btn-mute").onclick = () => {
   if (!conversation) return;
   muted = !muted;
