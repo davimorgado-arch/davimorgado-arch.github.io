@@ -24,7 +24,7 @@
   .screen.on { display:block; }
   h1 { font-size:22px; margin:0 0 6px; }
   .sub { color:var(--muted); font-size:14px; margin:0 0 20px; line-height:1.5; }
-  input {
+  input[type=text] {
     width:100%; padding:14px; border-radius:12px; border:1px solid var(--line);
     background:var(--bg); color:var(--text); font-size:16px; margin-bottom:16px;
   }
@@ -46,14 +46,17 @@
   .choice b { display:block; font-size:15px; margin-bottom:4px; }
   .choice span { color:var(--muted); font-size:13px; line-height:1.4; }
 
+  /* Aceite de gravação */
+  .consent { display:flex; gap:10px; align-items:flex-start; text-align:left; font-size:13px; color:var(--muted); margin:6px 0 16px; line-height:1.4; cursor:pointer; }
+  .consent input { margin-top:2px; width:18px; height:18px; flex:none; }
+
   /* Ficha do lead e gabarito */
   .card {
     text-align:left; background:var(--bg); border:1px solid var(--line); border-radius:14px;
-    padding:14px 16px; margin-bottom:16px; font-size:14px; line-height:1.55;
+    padding:14px 16px; margin-bottom:16px; font-size:14px; line-height:1.55; white-space:pre-line;
   }
-  .card .lbl { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.04em; margin:0 0 6px; }
-  .card p { margin:0 0 4px; }
-  .goal { border-color:var(--accent); }
+  .card .lbl { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.04em; margin:0 0 6px; white-space:normal; }
+  .goal { border-color:var(--accent); white-space:normal; }
 
   /* Tela de ligação */
   .avatar {
@@ -85,28 +88,32 @@
 <body>
 <div class="phone">
 
-  <!-- Tela 1: nome + escolha do desafio -->
+  <!-- Tela 1: nome, aceite e escolha do desafio -->
   <div id="s-start" class="screen on">
     <h1>Simulador de Cold Call</h1>
     <p class="sub">Use fone com microfone. Escolha o desafio, leia a ficha do lead e ligue.</p>
-    <input id="name" placeholder="Seu nome" autocomplete="off" maxlength="40">
-    <button class="choice sel" data-ch="frio">
+    <input id="name" type="text" placeholder="Seu nome" autocomplete="off" maxlength="40">
+    <button class="choice sel" data-ch="1">
       <b>Desafio 1 · Lead frio</b>
-      <span>Você liga para a central da empresa. Objetivo: descobrir quem é o responsável pela energia elétrica e conseguir o contato dele.</span>
+      <span>Você liga para a empresa. Objetivo: descobrir quem é o responsável pela energia elétrica e conseguir o contato dele.</span>
     </button>
-    <button class="choice" data-ch="morno">
+    <button class="choice" data-ch="2">
       <b>Desafio 2 · Primeiro contato com o responsável</b>
       <span>Você já tem o nome do responsável. Objetivo: entender a situação energética da empresa e gerar interesse num próximo passo.</span>
     </button>
-    <button id="btn-next" class="btn btn-green" style="margin-top:8px">Sortear lead</button>
+    <label class="consent">
+      <input id="consent" type="checkbox">
+      <span>Estou ciente de que a ligação será gravada e poderá ser usada como material de estudo.</span>
+    </label>
+    <button id="btn-next" class="btn btn-green" disabled>Carregando…</button>
     <p id="start-err" class="warn" hidden></p>
   </div>
 
-  <!-- Tela 2: ficha do lead sorteado -->
+  <!-- Tela 2: ficha do bot sorteado -->
   <div id="s-brief" class="screen">
     <h1 id="brief-title"></h1>
     <p class="sub">Isto é tudo o que você sabe antes de ligar.</p>
-    <div id="brief" class="card"></div>
+    <div class="card"><p class="lbl">Ficha do lead</p><div id="brief"></div></div>
     <div id="goal" class="card goal"></div>
     <button id="btn-call" class="btn btn-green">📞 Ligar</button>
     <button id="btn-reroll" class="link">Sortear outro lead</button>
@@ -116,7 +123,7 @@
   <!-- Tela 3: ligação (chamando / em andamento) -->
   <div id="s-call" class="screen">
     <div id="avatar" class="avatar">👤</div>
-    <p id="call-who" class="who"></p>
+    <p id="call-who" class="who">Lead</p>
     <p id="state" class="state">Chamando…</p>
     <div class="controls">
       <button id="btn-mute" class="round mute" title="Mudo" disabled>🎙️</button>
@@ -128,7 +135,8 @@
   <div id="s-end" class="screen">
     <h1>Ligação encerrada</h1>
     <p id="result" class="result"></p>
-    <div class="card"><p class="lbl">Gabarito — o que o lead sabia</p><div id="answer"></div></div>
+    <div class="card"><p class="lbl">Gabarito</p><div id="answer"></div></div>
+    <p class="sub">A pontuação sai na planilha do facilitador em 1–2 minutos.</p>
     <details>
       <summary>Ver transcrição</summary>
       <div id="transcript" class="transcript"></div>
@@ -142,132 +150,29 @@
 <script src="https://cdn.jsdelivr.net/npm/@elevenlabs/client@1.27.0/dist/lib.iife.js"></script>
 <script>
 // ===== Configuração =====
-// Um agente da ElevenLabs por desafio. Também aceita ?frio=...&morno=... na URL (útil para testes).
+// Também aceitam ?agent=...&bots=... na URL (útil para testes).
 const qs = new URLSearchParams(location.search);
-const AGENTS = {
-  frio:  qs.get("frio")  || "",
-  morno: qs.get("morno") || "",
-};
-const MIN_RINGS = 2;           // toques mínimos antes do lead atender
-const MAX_RINGS = 3;           // sorteia entre MIN e MAX para não ficar previsível
+const AGENT_ID = qs.get("agent") || "";   // agente único da ElevenLabs
+const BOTS_URL = qs.get("bots")  || "";   // URL do Apps Script publicado como app da web
+const MIN_RINGS = 2;                      // toques mínimos antes do lead atender
+const MAX_RINGS = 3;                      // sorteia entre MIN e MAX para não ficar previsível
 
-// ===== Cenários =====
-// Empresas e pessoas fictícias. "ficha" = o que o vendedor vê antes de ligar;
-// "vars" = o que vai para o agente (variáveis {{...}} do prompt); "gabarito" = mostrado ao final.
-// {periodo} é trocado por "bom dia"/"boa tarde" na hora da ligação.
-const SCENARIOS = {
-  frio: [
-    {
-      ficha: { Empresa: "Metalúrgica Serrana", Segmento: "Metalurgia (peças automotivas)", Cidade: "Caxias do Sul/RS", Telefone: "Central da empresa" },
-      atende: "Central",
-      vars: {
-        empresa: "Metalúrgica Serrana", segmento: "metalurgia de peças automotivas", cidade: "Caxias do Sul/RS",
-        saudacao: "Metalúrgica Serrana, {periodo}!",
-        persona: "Juliana, recepcionista há 6 anos. Simpática, mas tem ordem expressa de não passar ligação de vendedor para ninguém. Costuma pedir para mandar e-mail no comercial@.",
-        responsavel: "Ricardo Bassani, gerente industrial — é quem cuida da conta de luz e de tudo de energia. Ramal 230, e-mail ricardo.bassani@metalserrana.com.br.",
-      },
-      gabarito: "Responsável: <b>Ricardo Bassani</b>, gerente industrial. Ramal 230 · ricardo.bassani@metalserrana.com.br",
-    },
-    {
-      ficha: { Empresa: "Frigorífico Vale do Taquari", Segmento: "Frigorífico (aves)", Cidade: "Lajeado/RS", Telefone: "Número fixo do escritório" },
-      atende: "Escritório",
-      vars: {
-        empresa: "Frigorífico Vale do Taquari", segmento: "frigorífico de aves", cidade: "Lajeado/RS",
-        saudacao: "Alô?",
-        persona: "Seu Antônio Kunz, 63 anos, sócio-fundador. Atendeu porque passou pela mesa. Impaciente, desconfiado de vendedor, fala pouco. Acha que energia 'é coisa do financeiro'.",
-        responsavel: "Alessandra Kunz (sobrinha dele), gerente financeira — cuida dos contratos e da conta de energia. Celular (51) 99812-4471, prefere WhatsApp.",
-      },
-      gabarito: "Responsável: <b>Alessandra Kunz</b>, gerente financeira. Celular/WhatsApp (51) 99812-4471",
-    },
-    {
-      ficha: { Empresa: "Supermercados Bom Preço Serra", Segmento: "Varejo alimentar (4 lojas)", Cidade: "Bento Gonçalves/RS", Telefone: "Loja matriz" },
-      atende: "Loja matriz",
-      vars: {
-        empresa: "Supermercados Bom Preço Serra", segmento: "rede de supermercados com 4 lojas", cidade: "Bento Gonçalves/RS",
-        saudacao: "Bom Preço, Matheus, {periodo}.",
-        persona: "Matheus, 22 anos, auxiliar administrativo. Educado mas não sabe direito quem cuida de energia; primeiro chuta 'acho que é o pessoal da manutenção', depois lembra que é a diretoria. Se o vendedor for claro, ajuda.",
-        responsavel: "Cláudio Ferrari, diretor de operações — decide sobre contas de energia das lojas. E-mail claudio.ferrari@bomprecoserra.com.br; fica na matriz de manhã.",
-      },
-      gabarito: "Responsável: <b>Cláudio Ferrari</b>, diretor de operações. claudio.ferrari@bomprecoserra.com.br · na matriz pela manhã",
-    },
-    {
-      ficha: { Empresa: "Hospital Santa Clara do Vale", Segmento: "Saúde (hospital, 180 leitos)", Cidade: "Santa Cruz do Sul/RS", Telefone: "Central telefônica" },
-      atende: "Central telefônica",
-      vars: {
-        empresa: "Hospital Santa Clara do Vale", segmento: "hospital de 180 leitos", cidade: "Santa Cruz do Sul/RS",
-        saudacao: "Hospital Santa Clara, {periodo}.",
-        persona: "Telefonista da central. Muito ocupada, protocolar: só transfere se o vendedor disser com quem quer falar ou o setor. Se não souber o nome, oferece 'setor de compras', o que é um beco sem saída.",
-        responsavel: "Daniela Rocha, gerente administrativa — responsável pelo contrato de energia (o hospital já está no mercado livre). Ramal 4102. Engenharia de manutenção (ramal 4150) só cuida da parte técnica.",
-      },
-      gabarito: "Responsável: <b>Daniela Rocha</b>, gerente administrativa, ramal 4102. (Compras e manutenção eram caminhos errados.)",
-    },
-  ],
-  morno: [
-    {
-      ficha: { Empresa: "Frigorífico Vale do Taquari", Segmento: "Frigorífico (aves)", Cidade: "Lajeado/RS", Contato: "Alessandra Kunz, gerente financeira (indicada pelo sócio)" },
-      atende: "Alessandra Kunz",
-      vars: {
-        empresa: "Frigorífico Vale do Taquari", segmento: "frigorífico de aves", cidade: "Lajeado/RS",
-        saudacao: "Alessandra, pois não?",
-        persona: "Alessandra Kunz, 38 anos, gerente financeira. Objetiva, analítica, sem paciência para conversa vaga. O tio (sócio) passou o contato dela.",
-        situacao: "Mercado CATIVO na RGE, Grupo A4, demanda contratada de 900 kW. Fatura média de R$ 180 mil/mês, segundo maior custo da empresa depois da matéria-prima. Já ouviu falar de mercado livre mas acha arriscado ('um conhecido pegou preço alto e se arrependeu'). Nunca fez estudo de viabilidade. Câmaras frias rodam 24h.",
-        abre_se: "Perguntas sobre o peso da energia no custo; explicação de previsibilidade de preço e de que existe estudo sem compromisso; números concretos. Aceita mandar a fatura para um estudo se o vendedor pedir de forma clara e explicar o que ela recebe em troca.",
-        objecoes: "'Mercado livre não é arriscado?'; 'Manda uma proposta por e-mail que eu olho'; 'Agora não é prioridade'.",
-      },
-      gabarito: "Cativo (RGE), Grupo A4, 900 kW, fatura ~R$ 180 mil/mês. Receio de risco no mercado livre. Próximo passo ideal: <b>receber a fatura para estudo de viabilidade</b>.",
-    },
-    {
-      ficha: { Empresa: "Metalúrgica Serrana", Segmento: "Metalurgia (peças automotivas)", Cidade: "Caxias do Sul/RS", Contato: "Ricardo Bassani, gerente industrial" },
-      atende: "Ricardo Bassani",
-      vars: {
-        empresa: "Metalúrgica Serrana", segmento: "metalurgia de peças automotivas", cidade: "Caxias do Sul/RS",
-        saudacao: "Ricardo falando.",
-        persona: "Ricardo Bassani, 51 anos, gerente industrial, engenheiro. Cordial mas acha que o assunto energia 'já está resolvido'.",
-        situacao: "Já está no MERCADO LIVRE desde 2022, contrato com uma comercializadora até dezembro de 2027. A própria comercializadora 'faz a gestão' — ele não tem gestora independente. Dor escondida (só conta se o vendedor perguntar sobre surpresas/custos): ano passado tomou uma cobrança inesperada de encargos/ajuste na CCEE de uns R$ 40 mil e ninguém soube explicar direito. Não sabe quanto paga de fato por MWh somando tudo.",
-        abre_se: "Perguntas sobre quem faz a gestão e se teve surpresas na conta; explicação da diferença entre comprar energia e ter alguém do lado do cliente fazendo gestão; não atacar a comercializadora atual. Aceita uma reunião de 30 min se sentir que vai entender melhor o que paga.",
-        objecoes: "'Já estamos no mercado livre, está tudo certo'; 'Meu contrato vai até 2027'; 'A comercializadora já cuida disso'.",
-      },
-      gabarito: "Mercado livre desde 2022, contrato até dez/2027, gestão feita pela própria comercializadora. Dor: cobrança inesperada de ~R$ 40 mil na CCEE. Próximo passo ideal: <b>reunião para diagnóstico da gestão</b>.",
-    },
-    {
-      ficha: { Empresa: "Supermercados Bom Preço Serra", Segmento: "Varejo alimentar (4 lojas)", Cidade: "Bento Gonçalves/RS", Contato: "Cláudio Ferrari, diretor de operações" },
-      atende: "Cláudio Ferrari",
-      vars: {
-        empresa: "Supermercados Bom Preço Serra", segmento: "rede de supermercados com 4 lojas", cidade: "Bento Gonçalves/RS",
-        saudacao: "Alô, Cláudio.",
-        persona: "Cláudio Ferrari, 45 anos, diretor de operações. Saturado: recebe ligação de energia solar e mercado livre toda semana. Corta rápido quem parece mais um.",
-        situacao: "Quatro lojas: duas em média tensão (Grupo A, CATIVAS na RGE, ~R$ 60 mil/mês cada) e duas em baixa tensão. Tem geração solar (GD) no telhado de uma loja de baixa tensão. Nunca analisou migrar as duas lojas Grupo A. Refrigeração é o maior consumo.",
-        abre_se: "Vendedor que se diferencia em uma frase (não é 'mais um vendendo energia'), pergunta sobre as lojas em vez de despejar oferta, e mostra que mercado livre e solar podem conviver. Aceita mandar as faturas das duas lojas maiores se o vendedor for específico.",
-        objecoes: "'Já me ligaram dez empresas essa semana'; 'Já tenho solar'; 'Me manda no WhatsApp'.",
-      },
-      gabarito: "2 lojas Grupo A cativas (~R$ 60 mil/mês cada) + 2 em baixa tensão, uma com solar. Nunca analisou migração. Próximo passo ideal: <b>receber as faturas das 2 lojas Grupo A</b>.",
-    },
-    {
-      ficha: { Empresa: "Hospital Santa Clara do Vale", Segmento: "Saúde (hospital, 180 leitos)", Cidade: "Santa Cruz do Sul/RS", Contato: "Daniela Rocha, gerente administrativa" },
-      atende: "Daniela Rocha",
-      vars: {
-        empresa: "Hospital Santa Clara do Vale", segmento: "hospital de 180 leitos", cidade: "Santa Cruz do Sul/RS",
-        saudacao: "Daniela, {periodo}.",
-        persona: "Daniela Rocha, 42 anos, gerente administrativa. Educada, organizada, mas cautelosa: hospital filantrópico, tudo passa pela diretoria.",
-        situacao: "MERCADO LIVRE desde 2021. Contrato de energia VENCE EM 7 MESES. Tem uma gestora contratada, mas 'eles só aparecem quando é para renovar' — relatórios genéricos, ninguém explica a fatura. Ainda não começou a cotar a renovação. Consumo alto e constante (UTI, climatização).",
-        abre_se: "Perguntar sobre o vencimento do contrato e como está a relação com a gestora atual; mostrar que a renovação é a janela certa para comparar; propor algo concreto (comparativo, reunião com a diretoria). Aceita reunião se o vendedor ligar isso ao vencimento.",
-        objecoes: "'Já temos gestora'; 'Isso precisa passar pela diretoria'; 'Me liga mais perto do vencimento'.",
-      },
-      gabarito: "Mercado livre desde 2021, contrato vence em 7 meses, gestora atual ausente. Próximo passo ideal: <b>reunião antes da cotação da renovação</b>.",
-    },
-  ],
+// Contexto de cada desafio, enviado ao agente junto com o roteiro do bot
+const CONTEXTO = {
+  "1": "Você atende o telefone da empresa. Quem liga é um vendedor de uma empresa de gestão de energia / mercado livre. O objetivo dele é descobrir quem é o responsável pela energia elétrica e conseguir um contato direto. Você não decide nada sobre energia.",
+  "2": "Você é o responsável pela energia na empresa e está recebendo a PRIMEIRA ligação deste vendedor de gestão de energia / mercado livre. Você não conhece a empresa dele. O objetivo dele é entender sua situação energética e sair com um próximo passo (reunião ou envio de fatura).",
 };
-
 const GOALS = {
-  frio:  "Descobrir <b>quem é o responsável pela energia elétrica</b> (nome e cargo) e conseguir <b>um contato direto</b> (ramal, e-mail ou celular). Não é para vender nada.",
-  morno: "Descobrir a <b>situação energética</b> (cativo ou livre, contrato, vencimento, quem faz a gestão, tamanho da conta) e sair com <b>um próximo passo concreto</b> (reunião ou envio de fatura).",
+  "1": "Descobrir <b>quem é o responsável pela energia elétrica</b> (nome e cargo) e conseguir <b>um contato direto</b>. Não é para vender nada.",
+  "2": "Descobrir a <b>situação energética</b> (cativo ou livre, contrato, vencimento, quem faz a gestão, tamanho da conta) e sair com <b>um próximo passo concreto</b> (reunião ou envio de fatura).",
 };
-const TITLES = { frio: "Desafio 1 · Lead frio", morno: "Desafio 2 · Primeiro contato" };
+const TITLES = { "1": "Desafio 1 · Lead frio", "2": "Desafio 2 · Primeiro contato" };
 
 // ===== Estado =====
-let challenge = "frio";        // desafio escolhido
-let scenario = null;           // cenário sorteado
-let lastIdx = -1;              // evita sortear o mesmo cenário duas vezes seguidas
+let bots = [];                 // bots ativos vindos da planilha
+let challenge = "1";           // desafio escolhido
+let bot = null;                // bot sorteado
+let lastId = "";               // evita sortear o mesmo bot duas vezes seguidas
 let conversation = null;       // sessão ativa da ElevenLabs
 let ringer = null;             // controle do toque de chamada
 let startedAt = 0;             // quando o lead atendeu (ms)
@@ -281,8 +186,27 @@ const show = id => document.querySelectorAll(".screen").forEach(s => s.classList
 const fmt = ms => { const s = Math.floor(ms / 1000); return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`; };
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const periodo = () => new Date().getHours() < 12 ? "bom dia" : "boa tarde";
+const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
 
 try { $("name").value = localStorage.getItem("cc-name") || ""; } catch (e) {}
+
+// ===== Carrega os bots da planilha =====
+async function loadBots() {
+  const err = msg => { $("btn-next").textContent = "Indisponível"; $("start-err").textContent = msg; $("start-err").hidden = false; };
+  if (!AGENT_ID || !BOTS_URL) return err("Simulador não configurado (agente ou planilha).");
+  try {
+    const r = await fetch(BOTS_URL);
+    const data = await r.json();
+    bots = data.bots || [];
+    if (!bots.length) return err("Nenhum bot ativo na planilha.");
+    $("btn-next").textContent = "Sortear lead";
+    $("btn-next").disabled = false;
+  } catch (e) {
+    console.error(e);
+    err("Não foi possível carregar os bots da planilha.");
+  }
+}
+loadBots();
 
 // ===== Escolha do desafio e sorteio =====
 document.querySelectorAll(".choice").forEach(el => el.onclick = () => {
@@ -291,14 +215,13 @@ document.querySelectorAll(".choice").forEach(el => el.onclick = () => {
 });
 
 function draw() {
-  const list = SCENARIOS[challenge];
-  let i;
-  do { i = Math.floor(Math.random() * list.length); } while (list.length > 1 && i === lastIdx);
-  lastIdx = i;
-  scenario = list[i];
+  const list = bots.filter(b => String(b.desafio) === challenge);
+  if (!list.length) { $("start-err").textContent = "Nenhum bot ativo neste desafio."; $("start-err").hidden = false; show("s-start"); return; }
+  let pick;
+  do { pick = list[Math.floor(Math.random() * list.length)]; } while (list.length > 1 && pick.id === lastId);
+  bot = pick; lastId = pick.id;
   $("brief-title").textContent = TITLES[challenge];
-  $("brief").innerHTML = '<p class="lbl">Ficha do lead</p>' +
-    Object.entries(scenario.ficha).map(([k, v]) => `<p><b>${k}:</b> ${v}</p>`).join("");
+  $("brief").textContent = bot.ficha;   // texto livre da planilha (quebras de linha preservadas)
   $("goal").innerHTML = `<p class="lbl">Seu objetivo</p><p>${GOALS[challenge]}</p>`;
   show("s-brief");
 }
@@ -306,8 +229,8 @@ function draw() {
 $("btn-next").onclick = () => {
   const name = $("name").value.trim();
   if (!name) { $("name").focus(); return; }
-  if (!AGENTS[challenge]) {
-    $("start-err").textContent = "Agente deste desafio não configurado.";
+  if (!$("consent").checked) {
+    $("start-err").textContent = "Marque o aceite de gravação para continuar.";
     $("start-err").hidden = false;
     return;
   }
@@ -353,7 +276,7 @@ async function call() {
   // Zera estado da ligação anterior
   lines = []; endReason = ""; muted = false; startedAt = 0;
   $("btn-mute").classList.remove("active"); $("btn-mute").disabled = true;
-  $("call-who").textContent = `${scenario.vars.empresa} · ${scenario.atende}`;
+  $("call-who").textContent = bot.nome;
   $("state").textContent = "Chamando…";
   show("s-call");
 
@@ -363,21 +286,30 @@ async function call() {
   while (ringer && ringer.count < rings) await wait(200);
   if (!ringer) return;           // vendedor desistiu enquanto chamava
 
-  // Variáveis do cenário que vão para o prompt do agente
-  const vars = { ...scenario.vars, saudacao: scenario.vars.saudacao.replace("{periodo}", periodo()) };
+  // Variáveis do prompt do agente. bot_id e desafio também servem para o Apps Script pontuar depois.
+  const vars = {
+    bot_id: bot.id,
+    desafio: challenge,
+    contexto_desafio: CONTEXTO[challenge],
+    roteiro: bot.roteiro,
+    saudacao: String(bot.saudacao || "Alô?").replace("{periodo}", periodo()),
+  };
+  const options = {
+    agentId: AGENT_ID,
+    connectionType: "webrtc",
+    userId: $("name").value.trim(),   // identifica o vendedor no histórico e na pontuação
+    dynamicVariables: vars,
+    onConnect: onAnswered,
+    onDisconnect: d => { endReason = endReason || d.reason; finish(); },
+    onError: msg => { console.error(msg); endReason = endReason || "error"; },
+    onModeChange: ({ mode }) => $("avatar").classList.toggle("speaking", mode === "speaking"),
+    onMessage: m => lines.push({ role: m.role, text: m.message }),
+  };
+  // Voz específica do bot (exige override de voz liberado no agente)
+  if (bot.voz_id) options.overrides = { tts: { voiceId: bot.voz_id } };
 
   try {
-    conversation = await ElevenLabsClient.Conversation.startSession({
-      agentId: AGENTS[challenge],
-      connectionType: "webrtc",
-      userId: $("name").value.trim(),   // aparece no histórico da ElevenLabs para identificar o vendedor
-      dynamicVariables: vars,
-      onConnect: onAnswered,
-      onDisconnect: d => { endReason = endReason || d.reason; finish(); },
-      onError: msg => { console.error(msg); endReason = endReason || "error"; },
-      onModeChange: ({ mode }) => $("avatar").classList.toggle("speaking", mode === "speaking"),
-      onMessage: m => lines.push({ role: m.role, text: m.message }),
-    });
+    conversation = await ElevenLabsClient.Conversation.startSession(options);
     // Vendedor desligou enquanto a conexão abria: encerra a sessão que acabou de nascer
     if (endReason === "user") await conversation.endSession();
   } catch (e) {
@@ -419,16 +351,12 @@ function finish() {
     error: "A ligação caiu (erro de conexão).",
   };
   $("result").innerHTML = `${reasons[endReason] || reasons.error}<br>Duração: <b>${dur}</b>`;
-  $("answer").innerHTML = scenario ? scenario.gabarito : "";
+  $("answer").textContent = bot ? (bot.gabarito || "—") : "";
 
   $("transcript").innerHTML = lines.length
     ? lines.map(l => `<p><b>${l.role === "agent" ? "Lead" : "Você"}:</b> ${escapeHtml(l.text)}</p>`).join("")
     : "<p>Sem transcrição.</p>";
   show("s-end");
-}
-
-function escapeHtml(s) {
-  return s.replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
 }
 
 // ===== Botões =====
