@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Simulador de Cold Call</title>
+<style>
+  :root {
+    --bg:#111418; --card:#1B2027; --text:#F2F4F7; --muted:#9AA4B2;
+    --green:#22C55E; --red:#EF4444; --line:#2A313B;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:var(--bg); color:var(--text); padding:16px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  .phone {
+    width:100%; max-width:380px; background:var(--card); border:1px solid var(--line);
+    border-radius:28px; padding:32px 24px; text-align:center;
+  }
+  .screen { display:none; }
+  .screen.on { display:block; }
+  h1 { font-size:22px; margin:0 0 6px; }
+  .sub { color:var(--muted); font-size:14px; margin:0 0 24px; line-height:1.5; }
+  input {
+    width:100%; padding:14px; border-radius:12px; border:1px solid var(--line);
+    background:var(--bg); color:var(--text); font-size:16px; margin-bottom:16px;
+  }
+  .btn {
+    border:0; border-radius:999px; font-size:16px; font-weight:600; cursor:pointer;
+    padding:14px 28px; color:#fff;
+  }
+  .btn:disabled { opacity:.4; cursor:not-allowed; }
+  .btn-green { background:var(--green); width:100%; }
+  .btn-ghost { background:transparent; border:1px solid var(--line); color:var(--text); }
+  .avatar {
+    width:96px; height:96px; border-radius:50%; margin:8px auto 16px; background:#2F3742;
+    display:flex; align-items:center; justify-content:center; font-size:40px;
+    transition:box-shadow .2s;
+  }
+  .avatar.speaking { box-shadow:0 0 0 6px rgba(34,197,94,.35), 0 0 0 14px rgba(34,197,94,.12); }
+  .who { font-size:20px; font-weight:600; margin:0; }
+  .state { color:var(--muted); font-size:15px; margin:6px 0 32px; min-height:20px; }
+  .timer { font-variant-numeric:tabular-nums; }
+  .controls { display:flex; justify-content:center; gap:28px; align-items:center; }
+  .round {
+    width:68px; height:68px; border-radius:50%; border:0; cursor:pointer; font-size:26px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .round.mute { background:#2F3742; color:#fff; }
+  .round.mute.active { background:#fff; color:#111; }
+  .round.hang { background:var(--red); color:#fff; }
+  .warn { color:#FCA5A5; font-size:13px; margin-top:12px; }
+  .result { font-size:15px; color:var(--muted); margin:0 0 20px; line-height:1.6; }
+  details { text-align:left; margin:0 0 20px; }
+  summary { cursor:pointer; color:var(--muted); font-size:14px; }
+  .transcript { max-height:300px; overflow-y:auto; margin-top:10px; font-size:14px; line-height:1.5; }
+  .transcript p { margin:0 0 8px; }
+  .transcript b { color:var(--muted); font-weight:600; }
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <!-- Tela 1: identificação do vendedor -->
+  <div id="s-start" class="screen on">
+    <h1>Simulador de Cold Call</h1>
+    <p class="sub">Use fone com microfone. Você vai ligar para um lead frio — seu objetivo é descobrir quem é o responsável.</p>
+    <input id="name" placeholder="Seu nome" autocomplete="off" maxlength="40">
+    <button id="btn-call" class="btn btn-green">📞 Ligar</button>
+    <p id="cfg-warn" class="warn" hidden>Agente não configurado (AGENT_ID vazio).</p>
+    <p id="start-err" class="warn" hidden></p>
+  </div>
+
+  <!-- Tela 2: ligação (chamando / em andamento) -->
+  <div id="s-call" class="screen">
+    <div id="avatar" class="avatar">👤</div>
+    <p class="who">Lead</p>
+    <p id="state" class="state">Chamando…</p>
+    <div class="controls">
+      <button id="btn-mute" class="round mute" title="Mudo" disabled>🎙️</button>
+      <button id="btn-hang" class="round hang" title="Desligar">✆</button>
+    </div>
+  </div>
+
+  <!-- Tela 3: fim da ligação -->
+  <div id="s-end" class="screen">
+    <h1>Ligação encerrada</h1>
+    <p id="result" class="result"></p>
+    <details>
+      <summary>Ver transcrição</summary>
+      <div id="transcript" class="transcript"></div>
+    </details>
+    <button id="btn-again" class="btn btn-ghost">Nova ligação</button>
+  </div>
+
+</div>
+
+<!-- SDK oficial da ElevenLabs (build pronto para navegador, expõe window.ElevenLabsClient) -->
+<script src="https://cdn.jsdelivr.net/npm/@elevenlabs/client@1.27.0/dist/lib.iife.js"></script>
+<script>
+// ===== Configuração =====
+// ID do agente criado no painel da ElevenLabs. Também aceita ?agent=... na URL (útil para testes).
+const AGENT_ID = new URLSearchParams(location.search).get("agent") || "";
+const MIN_RINGS = 2;           // toques mínimos antes do lead atender
+const MAX_RINGS = 3;           // sorteia entre MIN e MAX para não ficar previsível
+
+// ===== Estado =====
+let conversation = null;       // sessão ativa da ElevenLabs
+let ringer = null;             // controle do toque de chamada
+let startedAt = 0;             // quando o lead atendeu (ms)
+let timerId = null;
+let endReason = "";            // "user" | "agent" | "error"
+let lines = [];                // transcrição acumulada
+let muted = false;
+
+const $ = id => document.getElementById(id);
+const show = id => document.querySelectorAll(".screen").forEach(s => s.classList.toggle("on", s.id === id));
+const fmt = ms => { const s = Math.floor(ms / 1000); return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`; };
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+if (!AGENT_ID) { $("cfg-warn").hidden = false; $("btn-call").disabled = true; }
+try { $("name").value = localStorage.getItem("cc-name") || ""; } catch (e) {}
+
+// ===== Toque de chamada (padrão brasileiro: 425 Hz) gerado no navegador =====
+function startRinging() {
+  const ctx = new AudioContext();
+  let stopped = false;
+  let count = 0;
+  const loop = async () => {
+    while (!stopped) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.value = 425;
+      gain.gain.value = 0.12;
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(); await wait(1000); osc.stop();
+      count++;
+      await wait(2500);           // pausa entre toques (encurtada em relação à rede real)
+    }
+  };
+  loop();
+  return { stop() { stopped = true; ctx.close(); }, get count() { return count; } };
+}
+
+// ===== Fluxo da ligação =====
+async function call() {
+  const name = $("name").value.trim();
+  if (!name) { $("name").focus(); return; }
+  try { localStorage.setItem("cc-name", name); } catch (e) {}
+  $("start-err").hidden = true;
+
+  // Pede o microfone antes de tocar, para o pop-up de permissão não aparecer no meio da ligação
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach(t => t.stop());
+  } catch (e) {
+    $("start-err").textContent = "Sem acesso ao microfone. Libere a permissão no navegador.";
+    $("start-err").hidden = false;
+    return;
+  }
+
+  // Zera estado da ligação anterior
+  lines = []; endReason = ""; muted = false; startedAt = 0;
+  $("btn-mute").classList.remove("active"); $("btn-mute").disabled = true;
+  $("state").textContent = "Chamando…";
+  show("s-call");
+
+  // Toca algumas vezes antes de conectar; o toque continua até o lead "atender"
+  ringer = startRinging();
+  const rings = MIN_RINGS + Math.floor(Math.random() * (MAX_RINGS - MIN_RINGS + 1));
+  while (ringer && ringer.count < rings) await wait(200);
+  if (!ringer) return;           // vendedor desistiu enquanto chamava
+
+  try {
+    conversation = await ElevenLabsClient.Conversation.startSession({
+      agentId: AGENT_ID,
+      connectionType: "webrtc",
+      userId: name,              // aparece no histórico da ElevenLabs para identificar o vendedor
+      onConnect: onAnswered,
+      onDisconnect: d => { endReason = endReason || d.reason; finish(); },
+      onError: msg => { console.error(msg); endReason = endReason || "error"; },
+      onModeChange: ({ mode }) => $("avatar").classList.toggle("speaking", mode === "speaking"),
+      onMessage: m => lines.push({ role: m.role, text: m.message }),
+    });
+    // Vendedor desligou enquanto a conexão abria: encerra a sessão que acabou de nascer
+    if (endReason === "user") await conversation.endSession();
+  } catch (e) {
+    console.error(e);
+    endReason = "error";
+    finish();
+  }
+}
+
+// Lead atendeu: para o toque e inicia o cronômetro
+function onAnswered() {
+  if (endReason) return;         // ligação já foi cancelada
+  if (ringer) { ringer.stop(); ringer = null; }
+  startedAt = Date.now();
+  $("btn-mute").disabled = false;
+  timerId = setInterval(() => {
+    $("state").innerHTML = `<span class="timer">${fmt(Date.now() - startedAt)}</span>`;
+  }, 250);
+}
+
+async function hangUp() {
+  endReason = endReason || "user";
+  if (ringer) { ringer.stop(); ringer = null; }  // desligou ainda chamando
+  if (conversation) await conversation.endSession();
+  else finish();
+}
+
+// Monta a tela final (chamada uma única vez por ligação)
+function finish() {
+  if (ringer) { ringer.stop(); ringer = null; }
+  clearInterval(timerId);
+  conversation = null;
+  $("avatar").classList.remove("speaking");
+
+  const dur = startedAt ? fmt(Date.now() - startedAt) : "00:00";
+  const reasons = {
+    user: "Você encerrou a ligação.",
+    agent: "O lead desligou.",
+    error: "A ligação caiu (erro de conexão).",
+  };
+  $("result").innerHTML = `${reasons[endReason] || reasons.error}<br>Duração: <b>${dur}</b>`;
+
+  $("transcript").innerHTML = lines.length
+    ? lines.map(l => `<p><b>${l.role === "agent" ? "Lead" : "Você"}:</b> ${escapeHtml(l.text)}</p>`).join("")
+    : "<p>Sem transcrição.</p>";
+  show("s-end");
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+}
+
+// ===== Botões =====
+$("btn-call").onclick = call;
+$("name").onkeydown = e => { if (e.key === "Enter") call(); };
+$("btn-hang").onclick = hangUp;
+$("btn-again").onclick = () => show("s-start");
+$("btn-mute").onclick = () => {
+  if (!conversation) return;
+  muted = !muted;
+  conversation.setMicMuted(muted);
+  $("btn-mute").classList.toggle("active", muted);
+};
+</script>
+</body>
+</html>
