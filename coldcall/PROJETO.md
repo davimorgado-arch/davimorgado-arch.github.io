@@ -213,7 +213,36 @@ Depois: **Implantar → Nova implantação → App da Web** (executar como **Eu*
 - **Bots de exemplo** (criados pelo `configurar`):
   - `juliana`: desafio 1, recepcionista da Metalúrgica Serrana;
   - `ricardo`: desafio 2, gerente industrial já no ACL, contrato até dez/2027, dor escondida de uma cobrança de ~R$ 40 mil na CCEE.
-- O Davi vai escrever os roteiros definitivos.
+- **Casos cadastrados (29/10/2026): 20 bots, 10 por desafio.** 70% mercado livre, 30% cativo. Nos casos cativos marcados com ☀️, o lead está cansado de ligação de energia solar e o front precisa deixar claro logo que não vende solar. Empresas diferentes nos dois desafios, exceto a dupla Juliana → Ricardo. O roteiro completo, os objetivos e o gabarito de cada um estão na aba Bots.
+
+| Desafio 1 (id) | Empresa | Mercado | Dificuldade | Voz |
+|---|---|---|---|---|
+| `juliana` | Metalúrgica Serrana | livre | filtro clássico | Jenifer (padrão) |
+| `cleide` | Rede Bom Preço | livre | transferência errada para o Compras | Marianne |
+| `patricia` | Hospital Santa Clara | livre | burocracia ("só pelo portal") | Fernanda |
+| `vera` | Plastifort ☀️ | cativo | secretária executiva + solar | Scheila |
+| `lucas` | Shopping Vale Verde | livre | atendente que não sabe | Daniel |
+| `dorival` | Frigorífico Coxilha | livre | porteiro, pessoa errada, "deixa recado" | Renato |
+| `bianca` | Faculdade Horizonte | livre | estagiária e LGPD | Nina M. |
+| `neusa` | Panificadora Trigo Bom ☀️ | cativo | solar + desliga rápido | Luana |
+| `rosana` | Têxtil Itajaí | livre | "ele não está, quer deixar recado?" | Roberta |
+| `fernanda` | Cooperativa Agrocerrado | livre | eletricista (operacional) × decisor | Sofia |
+
+| Desafio 2 (id) | Empresa | Mercado | Dificuldade | Voz |
+|---|---|---|---|---|
+| `ricardo` | Metalúrgica Serrana | livre | "já está resolvido" | Cirilo |
+| `sergio` | Supermercados Moretti ☀️ | cativo | desconfiança (golpe) + solar | Antonio de Jesus |
+| `carla` | Sabor do Campo ☀️ | cativo | "não tenho interesse" em 10 s | Scheila |
+| `paulo` | Química Vale do Aço | livre | técnico que testa o vendedor | Fabio Oliveira |
+| `marta` | Hotel Serra Alta | cativo | já tem proposta de concorrente | Roberta |
+| `gilberto` | Cerâmica Pagnoncelli | livre | trauma com gestora anterior | Renato |
+| `renata` | Grupo Educacional Horizonte | livre | "me manda por e-mail" | Marianne |
+| `fabio` | Autopeças Lunardi | livre | só quer preço (3 cotações) | Daniel |
+| `priscila` | Rede Lar & Casa | livre | atenção dividida, exige concisão | Sofia |
+| `tiago` | Laticínio Pura Serra ☀️ | cativo | "já tenho solar" | Eduardo S. |
+
+- **Vozes:** nenhuma se repete dentro do mesmo desafio; entre desafios, sim. As 12 vozes novas foram adicionadas em Minhas Vozes da ElevenLabs. A voz "Marx" não aceitou ser adicionada (sem mensagem de erro) e foi trocada por "Renato". Os IDs estão na coluna `voz_id`.
+- No desafio 1, todo caso tem dois objetivos `chave`: o nome do responsável e um contato direto. Vencer qualquer caso do desafio 1 libera o desafio 2.
 
 ### Aba Ligacoes (uma linha por ligação, preenchida pelo script)
 | Coluna | Conteúdo |
@@ -293,7 +322,8 @@ Fórmula `QUERY` somando o `total` por vendedor (só `status = ok`). A página `
 - ✅ **Teste de ponta a ponta feito (passo 7):** 3 ligações reais do Davi avaliadas pelo `?acao=resultado` (13%, 26% e 39%), com ✔/✘, evidências e feedback coerentes na aba Ligacoes. O desafio 2 continua bloqueado para "Davi", porque na ligação do desafio 1 ele não conseguiu nome nem contato (comportamento correto).
 - ✅ Página publicada no `main` (GitHub Pages) com a barra e o desbloqueio.
 - A linha do bot `erica` (teste antigo, bot que não existe mais) fica com erro; pode ser apagada à mão.
-- Ideias de desafios novos em discussão: 3 "O cativo desconfiado" (supermercado, qualificar e pegar a fatura), 4 "Não tenho interesse" (objeção na abertura) e 5 "Quem assina" (continuação do 2: diretora financeira Helena).
+- ✅ Decisão do Davi: só os desafios 1 e 2 ficam ligados. Em vez de desafios novos, cada desafio ganhou 10 casos (ver a tabela na seção 7, aba Bots). As ideias "cativo desconfiado" e "não tenho interesse" viraram casos do desafio 2; a Helena foi descartada.
+- ⏳ Os 18 casos novos ainda não foram testados em ligação real.
 
 ## 10. Próximos passos (em ordem)
 
