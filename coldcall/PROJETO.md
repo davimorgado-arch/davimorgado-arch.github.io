@@ -287,7 +287,12 @@ Fórmula `QUERY` somando o `total` por vendedor (só `status = ok`). A página `
 - ✅ Planilha: coluna `requisito` na aba Desafios (desafio 2 → 1); objetivos `chave` da Juliana: nome do responsável e contato direto.
 - ✅ Apps Script colado e implantado na mesma URL: versão 3 ("v3 - erros claros no resultado").
   - Ao colar código pelo clipboard no macOS, use `LANG=en_US.UTF-8 pbcopy`; sem isso os acentos viram lixo no editor.
-- 🐛 **Bloqueio encontrado:** a propriedade `ELEVENLABS_API_KEY` (e possivelmente as outras) **não está nas Script Properties**. Por isso nenhuma ligação entrou na aba Ligacoes até agora: o `sincronizar` parava em silêncio (agora registra o erro no log). O Davi precisa rodar o menu **📞 Cold Call → 2. Configurar chaves e agente**.
+- 🐛 Resolvido: as chaves não estavam nas Script Properties, então nenhuma ligação entrava na aba Ligacoes (o `sincronizar` parava em silêncio; agora registra o erro no log). O Davi salvou as chaves pelo menu.
+  - Na ElevenLabs, a chave começa com `sk_` e só aparece na criação; o painel depois mostra apenas o **ID** da chave, que não serve.
+  - A conta da Anthropic estava sem crédito; o Davi colocou US$ 5.
+- ✅ **Teste de ponta a ponta feito (passo 7):** 3 ligações reais do Davi avaliadas pelo `?acao=resultado` (13%, 26% e 39%), com ✔/✘, evidências e feedback coerentes na aba Ligacoes. O desafio 2 continua bloqueado para "Davi", porque na ligação do desafio 1 ele não conseguiu nome nem contato (comportamento correto).
+- ✅ Página publicada no `main` (GitHub Pages) com a barra e o desbloqueio.
+- A linha do bot `erica` (teste antigo, bot que não existe mais) fica com erro; pode ser apagada à mão.
 - Ideias de desafios novos em discussão: 3 "O cativo desconfiado" (supermercado, qualificar e pegar a fatura), 4 "Não tenho interesse" (objeção na abertura) e 5 "Quem assina" (continuação do 2: diretora financeira Helena).
 
 ## 10. Próximos passos (em ordem)
@@ -298,7 +303,7 @@ Fórmula `QUERY` somando o `total` por vendedor (só `status = ok`). A página `
 4. [x] Rodar **Configurar planilha e pastas** e depois **Configurar chaves e agente** (Agent ID `agent_1301m6210yfwfrcb95egc9w0jvfr`).
 5. [x] **Implantar como App da Web** e colar a URL em `API_URL` de `index.html` e `ranking.html`. Commit no branch.
 6. [x] **Liberar o merge** do branch `coldcall-simulador` no `main` (com ok do Davi) para publicar no GitHub Pages.
-7. [ ] **Teste de ponta a ponta:**
+7. [x] **Teste de ponta a ponta:** (feito em 29/10; falta conferir o consumo de créditos e a cópia de `exemplo`)
    - uma ligação real pela página;
    - conferir a linha na aba Ligacoes (✔/✘, pontos, feedback, links do Drive);
    - conferir o consumo real de créditos;
