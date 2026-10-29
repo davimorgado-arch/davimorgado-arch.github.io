@@ -278,7 +278,7 @@ Fórmula `QUERY` somando o `total` por vendedor (só `status = ok`). A página `
 3. [x] **Criar a planilha** e colar `coldcall/apps-script/Codigo.gs` em Extensões → Apps Script.
 4. [x] Rodar **Configurar planilha e pastas** e depois **Configurar chaves e agente** (Agent ID `agent_1301m6210yfwfrcb95egc9w0jvfr`).
 5. [x] **Implantar como App da Web** e colar a URL em `API_URL` de `index.html` e `ranking.html`. Commit no branch.
-6. [ ] **Liberar o merge** do branch `coldcall-simulador` no `main` (com ok do Davi) para publicar no GitHub Pages.
+6. [x] **Liberar o merge** do branch `coldcall-simulador` no `main` (com ok do Davi) para publicar no GitHub Pages.
 7. [ ] **Teste de ponta a ponta:**
    - uma ligação real pela página;
    - conferir a linha na aba Ligacoes (✔/✘, pontos, feedback, links do Drive);
@@ -290,6 +290,7 @@ Fórmula `QUERY` somando o `total` por vendedor (só `status = ok`). A página `
    - adicionar às vozes da conta;
    - copiar o Voice ID para a coluna `voz_id` de cada bot;
    - 2 vozes femininas e 2 masculinas bastam.
+   - feito (29/10/2026): Ricardo (desafio 2) com **Cirilo** `1DXriIY2zhyCt1cj8onn` (adulto, médio-grave, conversacional). Juliana segue com a Jenifer (padrão). Alternativa para o Ricardo: **Eduardo S.** (sotaque do Sul).
 9. [ ] **Davi escreve os roteiros definitivos** na aba Bots: personagem, objetivos e secretos com pontos.
 10. [ ] **Decidir o plano** pelas ligações simultâneas (Free 4 / Starter 6 / Creator 10), de acordo com a data do workshop.
 11. [ ] **Ensaiar** com 2 ou 3 pessoas ligando ao mesmo tempo.
