@@ -54,6 +54,16 @@
   .btn-green { background:var(--green); }
   .btn-ghost { background:transparent; border:1px solid var(--line); color:var(--text); }
   .link { background:none; border:0; color:var(--muted); font-size:13px; cursor:pointer; text-decoration:underline; }
+  .ch.locked { opacity:.6; }
+  .lock { font-size:12px; color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:3px 10px; white-space:nowrap; }
+
+  /* Barra de informação extraída (tela final) */
+  .bar { height:12px; border-radius:999px; background:var(--line); overflow:hidden; margin:4px 0 10px; }
+  .bar-fill { height:100%; width:0; border-radius:999px; background:var(--accent); transition:width 1.2s ease; }
+  .bar.loading .bar-fill { width:30%; opacity:.5; animation:slide 1.4s ease-in-out infinite; }
+  @keyframes slide { 0% { transform:translateX(-100%); } 100% { transform:translateX(340%); } }
+  .eval-msg { margin:0; font-size:14px; }
+  .unlock { margin:8px 0 0; font-size:14px; color:var(--green); font-weight:600; }
 
   /* Ligação e fim (cartão central estilo celular) */
   .phone {
@@ -91,7 +101,7 @@
   <!-- Tela 1: identificação + um card por desafio -->
   <div id="s-start" class="screen on">
     <h1>Simulador de Cold Call</h1>
-    <p class="sub">Use fone com microfone. Escolha um desafio, leia a ficha do lead e clique em Ligar. Os desafios podem ser feitos em qualquer ordem.</p>
+    <p class="sub">Use fone com microfone. Escolha um desafio, leia a ficha do lead e clique em Ligar. Alguns desafios só abrem depois que você cumpre o anterior.</p>
     <div class="ident">
       <input id="name" type="text" placeholder="Seu nome" autocomplete="off" maxlength="40">
       <label class="consent">
@@ -121,6 +131,12 @@
     <div class="phone">
       <h1>Ligação encerrada</h1>
       <p id="result" class="result"></p>
+      <div id="eval" class="box">
+        <p class="lbl">Informação extraída</p>
+        <div id="bar" class="bar"><div id="bar-fill" class="bar-fill"></div></div>
+        <p id="eval-msg" class="eval-msg"></p>
+        <p id="unlock" class="unlock" hidden></p>
+      </div>
       <div class="box"><p class="lbl">Gabarito</p><div id="answer"></div></div>
       <p class="sub">Sua pontuação é calculada automaticamente e entra no ranking.</p>
       <details>
@@ -143,6 +159,8 @@ const AGENT_ID = qs.get("agent") || "agent_1301m6210yfwfrcb95egc9w0jvfr";   // a
 const API_URL  = qs.get("api")   || "https://script.google.com/macros/s/AKfycbwXoiuekCrxQAZncSYzJbp2c8p8C-Ik3JDUL-gXJ4kDrZW3xqZwqAgCqnZhoVBAVEQ/exec";   // URL do Apps Script publicado como app da web
 const MIN_RINGS = 2;                      // toques mínimos antes do lead atender
 const MAX_RINGS = 3;                      // sorteia entre MIN e MAX para não ficar previsível
+const AVAL_INTERVALO = 5000;              // consulta o resultado da avaliação a cada 5 s…
+const AVAL_TENTATIVAS = 48;               // …por até 4 min
 
 // ===== Estado =====
 let desafios = [];             // desafios ativos (aba Desafios)
@@ -156,6 +174,10 @@ let timerId = null;
 let endReason = "";            // "user" | "agent" | "error"
 let lines = [];                // transcrição acumulada
 let muted = false;
+let convId = "";               // id da conversa na ElevenLabs (para buscar a avaliação)
+let liberados = new Set();     // desafios com requisito já liberados para este vendedor
+let avalToken = 0;             // invalida consultas de avaliação de ligações anteriores
+let progTimer = null;
 
 const $ = id => document.getElementById(id);
 const show = id => document.querySelectorAll(".screen").forEach(s => s.classList.toggle("on", s.id === id));
@@ -174,7 +196,30 @@ function marcarFeito(num) {
 
 try { $("name").value = localStorage.getItem("cc-name") || ""; } catch (e) {}
 // Atualiza os selos "feito" enquanto digita (no "change" o redesenho engoliria o clique em Ligar)
-$("name").addEventListener("input", () => { if (desafios.length) renderCards(); });
+// e, quando para de digitar, busca o que esse nome já liberou
+$("name").addEventListener("input", () => {
+  if (!desafios.length) return;
+  liberados = new Set();
+  renderCards();
+  clearTimeout(progTimer);
+  progTimer = setTimeout(carregarProgresso, 600);
+});
+
+// Desafios com requisito liberados para o nome digitado (calculado pela planilha)
+async function carregarProgresso() {
+  const n = nome();
+  if (!n || !desafios.some(d => d.requisito)) return;
+  try {
+    const r = await (await fetch(`${API_URL}?acao=progresso&vendedor=${encodeURIComponent(n)}`)).json();
+    if (n !== nome()) return;                  // o nome mudou enquanto buscava
+    liberados = new Set(r.liberados || []);
+    renderCards();
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+const bloqueado = d => !!d.requisito && !liberados.has(String(d.numero));
 
 // ===== Carrega desafios e bots da planilha =====
 async function load() {
@@ -189,6 +234,7 @@ async function load() {
     if (!desafios.length) return err("Nenhum desafio com bots ativos na planilha.");
     desafios.forEach(d => sortear(d.numero));
     renderCards();
+    carregarProgresso();
   } catch (e) {
     console.error(e);
     err("Não foi possível carregar os desafios da planilha.");
@@ -208,6 +254,16 @@ function sortear(num) {
 function renderCards() {
   const f = feitos();
   $("grid").innerHTML = desafios.map(d => {
+    // Bloqueado: esconde objetivo e ficha (a ficha entregaria a resposta do desafio anterior)
+    if (bloqueado(d)) {
+      const req = desafios.find(x => String(x.numero) === String(d.requisito));
+      return `
+        <div class="ch locked">
+          <div class="ch-head"><h2>${esc(d.titulo)}</h2><span class="lock">🔒 bloqueado</span></div>
+          <p>${esc(d.descricao)}</p>
+          <div class="box">Cumpra o objetivo do <b>${esc(req ? req.titulo : "Desafio " + d.requisito)}</b> para liberar.</div>
+        </div>`;
+    }
     const b = sorteado[d.numero];
     const selo = f[d.numero] ? `<span class="done">✓ feito${f[d.numero] > 1 ? " · " + f[d.numero] + "x" : ""}</span>` : "";
     return `
@@ -266,11 +322,12 @@ async function call(num) {
   }
 
   const desafio = desafios.find(d => String(d.numero) === String(num));
+  if (bloqueado(desafio)) return;
   const bot = sorteado[num];
   atual = { desafio, bot };
 
   // Zera estado da ligação anterior
-  lines = []; endReason = ""; muted = false; startedAt = 0;
+  lines = []; endReason = ""; muted = false; startedAt = 0; convId = ""; avalToken++;
   $("btn-mute").classList.remove("active"); $("btn-mute").disabled = true;
   $("call-who").textContent = bot.nome;
   $("state").textContent = "Chamando…";
@@ -305,6 +362,7 @@ async function call(num) {
 
   try {
     conversation = await ElevenLabsClient.Conversation.startSession(options);
+    convId = conversation.getId();
     // Vendedor desligou enquanto a conexão abria: encerra a sessão que acabou de nascer
     if (endReason === "user") await conversation.endSession();
   } catch (e) {
@@ -347,13 +405,66 @@ function finish() {
   };
   $("result").innerHTML = `${reasons[endReason] || reasons.error}<br>Duração: <b>${dur}</b>`;
   $("answer").textContent = atual ? (atual.bot.gabarito || "—") : "";
-  // Conta como "feito" só se a ligação foi atendida e houve fala do vendedor
-  if (atual && startedAt && lines.some(l => l.role === "user")) marcarFeito(atual.desafio.numero);
+  // Conta como "feito" e é avaliada só se a ligação foi atendida e houve fala do vendedor
+  const falou = !!(atual && startedAt && lines.some(l => l.role === "user"));
+  if (falou) marcarFeito(atual.desafio.numero);
+  $("unlock").hidden = true;
+  if (falou && convId) {
+    $("bar").classList.add("loading");
+    $("bar-fill").style.width = "";
+    $("eval-msg").textContent = "Avaliando sua ligação…";
+    acompanharAvaliacao(convId, avalToken);
+  } else {
+    mostrarAvaliacao(null, "Ligação sem conversa: nada para avaliar.");
+  }
 
   $("transcript").innerHTML = lines.length
     ? lines.map(l => `<p><b>${l.role === "agent" ? "Lead" : "Você"}:</b> ${esc(l.text)}</p>`).join("")
     : "<p>Sem transcrição.</p>";
   show("s-end");
+}
+
+// ===== Avaliação: barra de informação extraída =====
+// A planilha guarda a pontuação real; aqui o vendedor só vê a proporção, sem números.
+async function acompanharAvaliacao(id, token) {
+  for (let i = 0; i < AVAL_TENTATIVAS; i++) {
+    await wait(AVAL_INTERVALO);
+    if (token !== avalToken) return;           // começou outra ligação
+    try {
+      const r = await (await fetch(`${API_URL}?acao=resultado&conv=${encodeURIComponent(id)}`)).json();
+      if (token !== avalToken) return;
+      if (r.erro) return mostrarAvaliacao(null, "Não foi possível avaliar esta ligação.");
+      if (!r.pronto) continue;
+      if (!r.avaliada) return mostrarAvaliacao(null, "Não foi possível avaliar esta ligação.");
+
+      // Desafios que esta ligação acabou de liberar
+      const novos = desafios.filter(d => d.requisito && !liberados.has(String(d.numero)) && (r.liberados || []).includes(String(d.numero)));
+      liberados = new Set(r.liberados || []);
+      if (novos.length) {
+        $("unlock").textContent = "🔓 Liberado: " + novos.map(d => d.titulo).join(", ");
+        $("unlock").hidden = false;
+      }
+      return mostrarAvaliacao(r.pct);
+    } catch (e) {
+      console.error(e);                        // falha de rede: tenta de novo no próximo ciclo
+    }
+  }
+  if (token === avalToken) mostrarAvaliacao(null, "A avaliação está demorando. Ela aparece na planilha em alguns minutos.");
+}
+
+const rotulo = p =>
+  p >= 85 ? "Extraiu quase tudo. Excelente!" :
+  p >= 60 ? "Muito bom. Ainda ficou alguma coisa na mesa." :
+  p >= 30 ? "Bom começo, mas tinha bem mais para descobrir." :
+            "Ficou muita informação na mesa. Tente de novo.";
+
+// pct null = sem barra, só a mensagem
+function mostrarAvaliacao(pct, msg) {
+  $("bar").classList.remove("loading");
+  $("bar").hidden = pct == null;
+  $("bar-fill").style.width = "0";
+  if (pct != null) requestAnimationFrame(() => requestAnimationFrame(() => { $("bar-fill").style.width = Math.max(pct, 3) + "%"; }));
+  $("eval-msg").textContent = msg || rotulo(pct);
 }
 
 // ===== Botões =====

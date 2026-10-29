@@ -24,11 +24,12 @@ const CONFIG = {
   VERMELHO:         '#ffcdd2',
 };
 
-const COLS_DESAFIOS = ['numero', 'ativo', 'titulo', 'descricao', 'objetivo', 'contexto'];
+// requisito: número do desafio que precisa ser cumprido antes (vazio = sempre aberto)
+const COLS_DESAFIOS = ['numero', 'ativo', 'titulo', 'descricao', 'objetivo', 'contexto', 'requisito'];
 const COLS_BOTS     = ['id', 'ativo', 'desafio', 'nome', 'ficha', 'saudacao', 'voz_id',
                        'roteiro', 'objetivos', 'objetivos_secretos', 'gabarito'];
 // Campos que a página recebe. Objetivos e pontos NÃO saem da planilha.
-const PUBLICOS_DESAFIOS = ['numero', 'titulo', 'descricao', 'objetivo', 'contexto'];
+const PUBLICOS_DESAFIOS = ['numero', 'titulo', 'descricao', 'objetivo', 'contexto', 'requisito'];
 const PUBLICOS_BOTS     = ['id', 'desafio', 'nome', 'ficha', 'saudacao', 'voz_id', 'roteiro', 'gabarito'];
 
 const COLS_O = Array.from({ length: CONFIG.MAX_OBJ }, (_, i) => 'O' + (i + 1));
@@ -107,7 +108,10 @@ function sincronizar() {
   if (!lock.tryLock(1000)) return;            // execução anterior ainda rodando
   try {
     const props = PropertiesService.getScriptProperties().getProperties();
-    if (!props.ELEVENLABS_API_KEY || !props.ANTHROPIC_API_KEY || !props.AGENT_ID) return;
+    if (!props.ELEVENLABS_API_KEY || !props.ANTHROPIC_API_KEY || !props.AGENT_ID) {
+      console.error('sincronizar: chaves não configuradas (menu "2. Configurar chaves e agente")');
+      return;
+    }
     const ss = SpreadsheetApp.openById(props.PLANILHA_ID);
     processarNovas_(ss, props);
     copiarExemplos_(ss, props);
@@ -143,14 +147,24 @@ function reprocessarErros() {
 }
 
 // App da web:
-//   ?acao=ranking → ranking por vendedor (página do pódio)
-//   sem parâmetro → desafios e bots ativos, só campos públicos (página do simulador)
+//   ?acao=ranking                → ranking por vendedor (página do pódio)
+//   ?acao=resultado&conv=ID      → % de informação extraída numa ligação (avalia na hora se preciso)
+//   ?acao=progresso&vendedor=X   → desafios com requisito já liberados para o vendedor
+//   sem parâmetro                → desafios e bots ativos, só campos públicos (página do simulador)
 function doGet(e) {
-  const acao  = (e && e.parameter && e.parameter.acao) || 'bots';
+  const p    = (e && e.parameter) || {};
+  const acao = p.acao || 'bots';
+  // Respostas por ligação ou por vendedor: sem cache
+  if (acao === 'resultado') {
+    try { return json_(resultado_(p.conv)); }
+    catch (err) { console.error('resultado: ' + err.message); return json_({ erro: err.message }); }
+  }
+  if (acao === 'progresso') return json_({ liberados: liberados_(abrirPlanilha_(), p.vendedor) });
+
   const cache = CacheService.getScriptCache();
   let json = cache.get(acao);
   if (!json) {
-    const ss = SpreadsheetApp.openById(PropertiesService.getScriptProperties().getProperty('PLANILHA_ID'));
+    const ss = abrirPlanilha_();
     const dados = acao === 'ranking' ? { ranking: calcularRanking_(ss) } : {
       desafios: lerTabela_(ss, CONFIG.ABA_DESAFIOS).filter(d => d.ativo === true).map(d => publico_(d, PUBLICOS_DESAFIOS)),
       bots:     lerTabela_(ss, CONFIG.ABA_BOTS).filter(b => b.ativo === true).map(b => publico_(b, PUBLICOS_BOTS)),
@@ -177,20 +191,26 @@ function processarNovas_(ss, props) {
   const bots   = Object.fromEntries(lerTabela_(ss, CONFIG.ABA_BOTS).map(b => [String(b.id), b]));
   const pastas = { gravacoes: DriveApp.getFolderById(props.PASTA_GRAVACOES_ID) };
 
-  const res = novas.map(c => {
-    try {
-      return processarConversa_(c.conversation_id, bots, pastas, props);
-    } catch (e) {
-      // Linha de erro evita loop infinito; "Reprocessar ligações com erro" tenta de novo
-      const l = linhaVazia_();
-      l[COL.conversation_id] = c.conversation_id;
-      l[COL.data]            = new Date(c.start_time_unix_secs * 1000);
-      l[COL.status]          = 'erro: ' + e.message.slice(0, 300);
-      return { linha: l, notas: notasVazias_() };
-    }
-  });
+  const res = novas.map(c => processarSeguro_(c.conversation_id, c.start_time_unix_secs, bots, pastas, props));
+  gravarLinhas_(aba, res);
+}
 
-  // Escrita em lote: valores, notas dos ✔/✘ e caixinha de exemplo
+// Processa uma ligação; se der erro, devolve uma linha de erro em vez de lançar
+function processarSeguro_(id, inicioSecs, bots, pastas, props, detalhe) {
+  try {
+    return processarConversa_(id, bots, pastas, props, detalhe);
+  } catch (e) {
+    // Linha de erro evita loop infinito; "Reprocessar ligações com erro" tenta de novo
+    const l = linhaVazia_();
+    l[COL.conversation_id] = id;
+    l[COL.data]            = inicioSecs ? new Date(inicioSecs * 1000) : new Date();
+    l[COL.status]          = 'erro: ' + e.message.slice(0, 300);
+    return { linha: l, notas: notasVazias_() };
+  }
+}
+
+// Escrita em lote: valores, notas dos ✔/✘ e caixinha de exemplo
+function gravarLinhas_(aba, res) {
   const inicio = aba.getLastRow() + 1;
   const n      = res.length;
   aba.getRange(inicio, 1, n, COLS_LIG.length).setValues(res.map(r => r.linha));
@@ -198,8 +218,9 @@ function processarNovas_(ss, props) {
   aba.getRange(inicio, COL.exemplo + 1, n, 1).insertCheckboxes();
 }
 
-function processarConversa_(id, bots, pastas, props) {
-  const d     = elevenJSON_(`/v1/convai/conversations/${id}`, props);
+// detalhe: JSON da conversa, quando já foi buscado (evita buscar duas vezes)
+function processarConversa_(id, bots, pastas, props, detalhe) {
+  const d     = detalhe || elevenJSON_(`/v1/convai/conversations/${id}`, props);
   const init  = d.conversation_initiation_client_data || {};
   const dyn   = init.dynamic_variables || {};
   const meta  = d.metadata || {};
@@ -346,16 +367,86 @@ function avaliar_(roteiro, objetivos, secretos, transcricao, props) {
   return JSON.parse(texto.text);
 }
 
+// ─── RESULTADO E DESBLOQUEIO (página do simulador) ───────────
+
+// % de informação extraída numa ligação. Se o gatilho ainda não processou, processa agora.
+// { pronto:false } = ainda não dá (ligação em processamento na ElevenLabs ou script ocupado)
+function resultado_(conv) {
+  if (!/^[\w-]{6,80}$/.test(conv || '')) return { erro: 'id inválido' };
+  const ss  = abrirPlanilha_();
+  const aba = ss.getSheetByName(CONFIG.ABA_LIGACOES);
+  let r = buscarLigacao_(aba, conv);
+
+  if (!r) {
+    const lock = LockService.getScriptLock();
+    if (!lock.tryLock(25000)) return { pronto: false };
+    try {
+      r = buscarLigacao_(aba, conv);            // o gatilho pode ter processado enquanto esperava
+      if (!r) {
+        const props = PropertiesService.getScriptProperties().getProperties();
+        if (!props.ELEVENLABS_API_KEY || !props.ANTHROPIC_API_KEY) throw new Error('chaves não configuradas (menu "2. Configurar chaves e agente")');
+        const d = elevenJSON_(`/v1/convai/conversations/${conv}`, props);
+        if (d.agent_id && d.agent_id !== props.AGENT_ID) return { erro: 'ligação de outro agente' };
+        if (d.status !== 'done' && d.status !== 'failed') return { pronto: false };
+        const bots   = Object.fromEntries(lerTabela_(ss, CONFIG.ABA_BOTS).map(b => [String(b.id), b]));
+        const pastas = { gravacoes: DriveApp.getFolderById(props.PASTA_GRAVACOES_ID) };
+        const res    = processarSeguro_(conv, (d.metadata || {}).start_time_unix_secs, bots, pastas, props, d);
+        gravarLinhas_(aba, [res]);
+        r = res.linha;
+      }
+    } finally {
+      lock.releaseLock();
+    }
+  }
+
+  if (r[COL.status] !== 'ok') return { pronto: true, avaliada: false };
+  const bot = lerTabela_(ss, CONFIG.ABA_BOTS).find(b => String(b.id) === botIdDaLinha_(r[COL.bot]));
+  const max = bot ? [...parseObjetivos_(bot.objetivos), ...parseObjetivos_(bot.objetivos_secretos)].reduce((s, o) => s + o.pts, 0) : 0;
+  return {
+    pronto:    true,
+    avaliada:  true,
+    pct:       max ? Math.min(100, Math.round(100 * (Number(r[COL.total]) || 0) / max)) : 0,
+    liberados: liberados_(ss, r[COL.vendedor]),
+  };
+}
+
+// Desafios com requisito que o vendedor já liberou: ele tem uma ligação avaliada no desafio
+// do requisito com todos os objetivos marcados "chave" cumpridos (sem chave: qualquer ✔ serve)
+function liberados_(ss, vendedor) {
+  const alvo = normNome_(vendedor);
+  if (!alvo) return [];
+  const comRequisito = lerTabela_(ss, CONFIG.ABA_DESAFIOS).filter(d => d.ativo === true && String(d.requisito || '').trim());
+  if (!comRequisito.length) return [];
+
+  const bots    = Object.fromEntries(lerTabela_(ss, CONFIG.ABA_BOTS).map(b => [String(b.id), b]));
+  const cumpriu = new Set();
+  linhasLigacoes_(ss)
+    .filter(r => r[COL.status] === 'ok' && normNome_(r[COL.vendedor]) === alvo)
+    .forEach(r => {
+      const bot = bots[botIdDaLinha_(r[COL.bot])];
+      if (!bot) return;
+      const chaves = parseObjetivos_(bot.objetivos).map((o, i) => o.chave ? i : -1).filter(i => i >= 0);
+      const marcou = i => i < COLS_O.length && r[COL[COLS_O[i]]] === '✔';
+      const passou = chaves.length ? chaves.every(marcou) : COLS_O.some((_, i) => marcou(i));
+      if (passou) cumpriu.add(String(r[COL.desafio]).trim());
+    });
+
+  return comRequisito.filter(d => cumpriu.has(String(d.requisito).trim())).map(d => String(d.numero));
+}
+
+function buscarLigacao_(aba, conv) {
+  const n = aba.getLastRow() - 1;
+  if (n < 1) return null;
+  const i = aba.getRange(2, 1, n, 1).getValues().findIndex(r => r[0] === conv);
+  return i < 0 ? null : aba.getRange(i + 2, 1, 1, COLS_LIG.length).getValues()[0];
+}
+
 // ─── RANKING ─────────────────────────────────────────────────
 
 // Soma por vendedor das ligações avaliadas (status "ok")
 function calcularRanking_(ss) {
-  const aba = ss.getSheetByName(CONFIG.ABA_LIGACOES);
-  const n   = aba.getLastRow() - 1;
-  if (n < 1) return [];
-  const dados = aba.getRange(2, 1, n, COLS_LIG.length).getValues();
-  const por   = {};
-  dados.filter(r => r[COL.status] === 'ok' && r[COL.vendedor]).forEach(r => {
+  const por = {};
+  linhasLigacoes_(ss).filter(r => r[COL.status] === 'ok' && r[COL.vendedor]).forEach(r => {
     const v = String(r[COL.vendedor]).trim();
     const p = por[v] = por[v] || { vendedor: v, pontos: 0, ligacoes: 0, objetivos: 0, secretos: 0 };
     p.pontos    += Number(r[COL.total]) || 0;
@@ -399,18 +490,18 @@ function criarAbaDesafios_(ss) {
     [1, true, 'Desafio 1 · Lead frio',
       'Você liga para a empresa sem conhecer ninguém. Quem atende raramente é quem decide.',
       'Descobrir quem é o responsável pela energia elétrica (nome e cargo) e conseguir um contato direto. Não é para vender nada.',
-      'Você atende o telefone da empresa. Quem liga é um vendedor de uma empresa de gestão de energia / mercado livre. O objetivo dele é descobrir quem é o responsável pela energia elétrica e conseguir um contato direto. Você não decide nada sobre energia.'],
+      'Você atende o telefone da empresa. Quem liga é um vendedor de uma empresa de gestão de energia / mercado livre. O objetivo dele é descobrir quem é o responsável pela energia elétrica e conseguir um contato direto. Você não decide nada sobre energia.', ''],
     [2, true, 'Desafio 2 · Primeiro contato',
       'Você já tem o nome do responsável e liga direto para ele. É o primeiro contato.',
       'Descobrir a situação energética (cativo ou livre, contrato, vencimento, quem faz a gestão, tamanho da conta) e sair com um próximo passo concreto (reunião ou envio de fatura).',
-      'Você é o responsável pela energia na empresa e está recebendo a PRIMEIRA ligação deste vendedor de gestão de energia / mercado livre. Você não conhece a empresa dele. O objetivo dele é entender sua situação energética e sair com um próximo passo (reunião ou envio de fatura).'],
+      'Você é o responsável pela energia na empresa e está recebendo a PRIMEIRA ligação deste vendedor de gestão de energia / mercado livre. Você não conhece a empresa dele. O objetivo dele é entender sua situação energética e sair com um próximo passo (reunião ou envio de fatura).', 1],
   ];
   aba.getRange(1, 1, 1, COLS_DESAFIOS.length).setValues([COLS_DESAFIOS]);
   aba.getRange(2, 1, ex.length, COLS_DESAFIOS.length).setValues(ex);
   formatarCabecalho_(aba.getRange(1, 1, 1, COLS_DESAFIOS.length));
   aba.getRange(2, 2, 50, 1).insertCheckboxes();
   aba.getRange(2, 2, ex.length, 1).setValue(true);
-  aba.getRange('A:F').setWrap(true).setVerticalAlignment('top');
+  aba.getRange('A:G').setWrap(true).setVerticalAlignment('top');
   aba.setColumnWidths(3, 4, 300);
   aba.setFrozenRows(1);
 }
@@ -488,7 +579,7 @@ function botsExemplo_() {
       'Você é Juliana, recepcionista da Metalúrgica Serrana (Caxias do Sul/RS) há 6 anos. Simpática, mas tem ordem expressa de não passar ligação de vendedor. Costuma mandar "enviar e-mail para o comercial@".\n' +
       'O responsável pela energia é Ricardo Bassani, gerente industrial. Ramal 230, e-mail ricardo.bassani@metalserrana.com.br. Ele fica na fábrica de manhã; à tarde é mais fácil de achar na sala.\n' +
       'Primeiro diga só a área ("isso é com a parte industrial"), depois o nome, e o ramal/e-mail só se pedirem com educação e motivo claro. Se o vendedor for gentil e direto, você ajuda; se enrolar ou fizer pitch, você corta.',
-      'Disse nome, empresa e motivo da ligação nos primeiros 20 segundos | 10\nDescobriu o nome do responsável pela energia | 20\nDescobriu o cargo ou área do responsável | 10\nConseguiu um contato direto (ramal ou e-mail) | 20',
+      'Disse nome, empresa e motivo da ligação nos primeiros 20 segundos | 10\nDescobriu o nome do responsável pela energia | 20 | chave\nDescobriu o cargo ou área do responsável | 10\nConseguiu um contato direto (ramal ou e-mail) | 20 | chave',
       'Descobriu o melhor horário para encontrar o responsável (à tarde) | 10\nConseguiu o contato sem fazer nenhum pitch de produto para a recepcionista | 10',
       'Responsável: Ricardo Bassani, gerente industrial. Ramal 230 · ricardo.bassani@metalserrana.com.br. Melhor horário: à tarde.',
     ],
@@ -509,6 +600,22 @@ function botsExemplo_() {
 
 // ─── FUNÇÕES INTERNAS ────────────────────────────────────────
 
+const abrirPlanilha_ = () => SpreadsheetApp.openById(PropertiesService.getScriptProperties().getProperty('PLANILHA_ID'));
+const json_          = obj => ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+
+// Todas as linhas da aba Ligacoes (sem cabeçalho)
+function linhasLigacoes_(ss) {
+  const aba = ss.getSheetByName(CONFIG.ABA_LIGACOES);
+  const n   = aba.getLastRow() - 1;
+  return n < 1 ? [] : aba.getRange(2, 1, n, COLS_LIG.length).getValues();
+}
+
+// Coluna "bot" da aba Ligacoes ("juliana · Metalúrgica…") → id do bot
+const botIdDaLinha_ = s => String(s || '').split(' · ')[0].trim();
+
+// Nome do vendedor para comparar: sem acento, minúsculo, espaços simples
+const normNome_ = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
 function lerTabela_(ss, nomeAba) {
   const linhas = ss.getSheetByName(nomeAba).getDataRange().getValues();
   const header = linhas[0];
@@ -519,11 +626,12 @@ function lerTabela_(ss, nomeAba) {
 
 const publico_ = (obj, campos) => Object.fromEntries(campos.map(c => [c, String(obj[c] ?? '')]));
 
-// "descrição | pontos" por linha → [{desc, pts}]
+// "descrição | pontos" ou "descrição | pontos | chave" por linha → [{desc, pts, chave}]
+// "chave" = objetivo exigido para liberar o desafio seguinte
 function parseObjetivos_(texto) {
   return String(texto || '').split('\n').map(s => s.trim()).filter(String).map(s => {
-    const [desc, pts] = s.split('|').map(x => x.trim());
-    return { desc, pts: Number(pts) || 0 };
+    const [desc, pts, marca] = s.split('|').map(x => x.trim());
+    return { desc, pts: Number(pts) || 0, chave: /^chave$/i.test(marca || '') };
   });
 }
 

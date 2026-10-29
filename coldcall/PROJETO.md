@@ -188,6 +188,9 @@ Depois: **Implantar → Nova implantação → App da Web** (executar como **Eu*
 | `ativo` | caixinha. Marcada = card aparece (se houver bot ativo no desafio) |
 | `titulo`, `descricao`, `objetivo` | textos do card |
 | `contexto` | vai para `{{contexto_desafio}}`: quem o bot é nesse desafio e o que o vendedor quer |
+| `requisito` | número do desafio que precisa ser cumprido antes. Vazio = sempre aberto. Hoje: desafio 2 → `1` |
+
+**Desbloqueio:** um desafio com `requisito` só abre para o vendedor (pelo nome digitado, sem acento e sem diferença de maiúsculas) que tiver uma ligação avaliada no desafio do requisito com **todos os objetivos `chave`** cumpridos. Se o bot do requisito não tiver nenhum objetivo `chave`, qualquer objetivo cumprido libera. Enquanto bloqueado, o card esconde objetivo e ficha (a ficha do desafio 2 entregaria a resposta do 1). Ligações antigas contam: o cálculo é feito na hora a partir da aba Ligacoes.
 
 ### Aba Bots (um personagem por linha)
 | Coluna | Uso | O front vê? |
@@ -200,7 +203,7 @@ Depois: **Implantar → Nova implantação → App da Web** (executar como **Eu*
 | `saudacao` | primeira fala; `{periodo}` → bom dia/boa tarde | ouve |
 | `voz_id` | Voice ID da ElevenLabs. Vazio = Jenifer | não |
 | `roteiro` | personalidade, situação, o que revela e sob qual condição | não* |
-| `objetivos` | um por linha: `descrição \| pontos` | não |
+| `objetivos` | um por linha: `descrição \| pontos`, ou `descrição \| pontos \| chave` para os que liberam o desafio seguinte | não |
 | `objetivos_secretos` | um por linha: `descrição \| pontos` (bônus) | não |
 | `gabarito` | mostrado ao front ao desligar | sim (no fim) |
 
@@ -227,6 +230,13 @@ Depois: **Implantar → Nova implantação → App da Web** (executar como **Eu*
 
 ### Aba Ranking
 Fórmula `QUERY` somando o `total` por vendedor (só `status = ok`). A página `ranking.html` usa `doGet?acao=ranking`, que calcula pontos, ligações, ✔ e ★ por vendedor. O desempate é por mais secretos, depois mais objetivos.
+
+### Barra de informação extraída (tela final)
+- Ao desligar, se o front falou, a página consulta `doGet?acao=resultado&conv=<id da conversa>` a cada 5 s, por até 4 min.
+- Se a ligação ainda não está na aba Ligacoes, o próprio `doGet` processa essa conversa na hora (com o mesmo lock do gatilho), sem esperar o ciclo de 1 min. Responde `{pronto:false}` enquanto a ElevenLabs não terminou a conversa.
+- A barra mostra `total / (soma de todos os pontos, secretos incluídos)` **sem número**, só a barra e um rótulo (≥85 "Extraiu quase tudo", ≥60 "Muito bom", ≥30 "Bom começo", abaixo disso "Ficou muita informação na mesa"). A pontuação real fica só na planilha.
+- A mesma resposta traz os desafios liberados; se a ligação liberou um novo, aparece "🔓 Liberado: …".
+- `doGet?acao=progresso&vendedor=<nome>` devolve os desafios liberados (usado ao abrir a página e ao digitar o nome).
 
 ### Avaliação pelo Claude (dentro do `Codigo.gs`)
 - **Endpoint:** `POST https://api.anthropic.com/v1/messages`, com os cabeçalhos `anthropic-version: 2026-10-21` e `anthropic-beta: server-side-fallback-2026-07-01`.
@@ -270,6 +280,15 @@ Fórmula `QUERY` somando o `total` por vendedor (só `status = ok`). A página `
   - testado: `doGet` devolve desafios e bots só com campos públicos; `?acao=ranking` devolve `{"ranking":[]}`.
 - ✅ Chave `config-temporaria` apagada pelo Davi.
 - 🐛 Corrigido: a fórmula da aba Ranking dava erro de análise em planilha pt-BR (separador `;`). O `Codigo.gs` agora escolhe o separador pelo idioma e usa `IFERROR` enquanto a aba Ligacoes está vazia.
+
+### Atualização de 29/10/2026
+- ✅ Ricardo com voz masculina (Cirilo). Ligação real testada pelo Davi.
+- ✅ Barra de informação extraída e desbloqueio entre desafios implementados (`index.html` e `Codigo.gs`), testados em Node e Playwright com API simulada.
+- ✅ Planilha: coluna `requisito` na aba Desafios (desafio 2 → 1); objetivos `chave` da Juliana: nome do responsável e contato direto.
+- ✅ Apps Script colado e implantado na mesma URL: versão 3 ("v3 - erros claros no resultado").
+  - Ao colar código pelo clipboard no macOS, use `LANG=en_US.UTF-8 pbcopy`; sem isso os acentos viram lixo no editor.
+- 🐛 **Bloqueio encontrado:** a propriedade `ELEVENLABS_API_KEY` (e possivelmente as outras) **não está nas Script Properties**. Por isso nenhuma ligação entrou na aba Ligacoes até agora: o `sincronizar` parava em silêncio (agora registra o erro no log). O Davi precisa rodar o menu **📞 Cold Call → 2. Configurar chaves e agente**.
+- Ideias de desafios novos em discussão: 3 "O cativo desconfiado" (supermercado, qualificar e pegar a fatura), 4 "Não tenho interesse" (objeção na abertura) e 5 "Quem assina" (continuação do 2: diretora financeira Helena).
 
 ## 10. Próximos passos (em ordem)
 
