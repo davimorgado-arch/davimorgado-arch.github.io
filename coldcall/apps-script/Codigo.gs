@@ -459,11 +459,13 @@ function criarAbaRanking_(ss) {
   const aba   = ss.insertSheet(CONFIG.ABA_RANKING);
   const letra = c => colLetra_(COL[c] + 1);
   const L     = { v: letra('vendedor'), t: letra('total'), s: letra('status'), id: letra('conversation_id') };
-  // Soma só ligações avaliadas (status "ok")
+  // Planilha em pt-BR exige ";" entre argumentos (com "," dá erro de análise)
+  const sep = ss.getSpreadsheetLocale().startsWith('en') ? ',' : ';';
+  // Soma só ligações avaliadas (status "ok"). IFERROR cobre a aba Ligacoes ainda vazia
   aba.getRange('A1').setFormula(
-    `=QUERY(${CONFIG.ABA_LIGACOES}!A:${colLetra_(COLS_LIG.length)},"select ${L.v}, sum(${L.t}), count(${L.id}), max(${L.t}) ` +
+    `=IFERROR(QUERY(${CONFIG.ABA_LIGACOES}!A:${colLetra_(COLS_LIG.length)}${sep}"select ${L.v}, sum(${L.t}), count(${L.id}), max(${L.t}) ` +
     `where ${L.v} is not null and ${L.s} = 'ok' group by ${L.v} order by sum(${L.t}) desc ` +
-    `label ${L.v} 'Vendedor', sum(${L.t}) 'Pontos', count(${L.id}) 'Ligações', max(${L.t}) 'Melhor ligação'",1)`
+    `label ${L.v} 'Vendedor', sum(${L.t}) 'Pontos', count(${L.id}) 'Ligações', max(${L.t}) 'Melhor ligação'"${sep}1)${sep}"Aguardando ligações avaliadas")`
   );
   aba.setColumnWidth(1, 220);
 }

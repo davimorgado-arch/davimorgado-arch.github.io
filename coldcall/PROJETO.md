@@ -1,6 +1,6 @@
 # Simulador de Cold Call: documento do projeto
 
-> Documento de passagem para retomar o projeto em outro ambiente. Atualizado em 29/10/2026.
+> Documento de passagem para retomar o projeto em outro ambiente. Atualizado em 28/10/2026.
 > **Para o Claude que for continuar:** leia este arquivo inteiro antes de agir. O estado atual está na seção 9 e a lista de pendências na seção 10.
 
 ---
@@ -259,21 +259,25 @@ Fórmula `QUERY` somando o `total` por vendedor (só `status = ok`). A página `
   - página real + ElevenLabs real + planilha real;
   - a URL do app da web ainda não existe.
 
-## 9. Estado atual (29/10/2026)
+## 9. Estado atual (28/10/2026)
 
-- ✅ Páginas `index.html` e `ranking.html` prontas no branch `coldcall-simulador` (não publicado; o `main` não foi tocado).
+- ✅ Páginas `index.html` e `ranking.html` prontas no branch `coldcall-simulador`, com `API_URL` preenchido (não publicado; o `main` não foi tocado).
 - ✅ Agente da ElevenLabs configurado e publicado, `AGENT_ID` fixado na página.
-- ✅ `Codigo.gs` pronto. ⏳ A planilha ainda **não foi criada**.
-- ⏳ `API_URL` vazio nas duas páginas.
-- ⚠️ **Segurança:** a chave da ElevenLabs `config-temporaria` (criada para configurar o agente via API) **passou pela conversa e precisa ser apagada** em Desenvolvedores → API Keys. Crie outra só para o Apps Script e cole direto no menu da planilha.
+- ✅ Planilha **Simulador Cold Call** criada: https://docs.google.com/spreadsheets/d/1s1qiiRL6SI4moDTsFXFet-gXwki3lSgMwif9uXXs71I/edit
+  - abas, pastas no Drive e gatilho de 1 min (`sincronizar`) configurados;
+  - chaves da ElevenLabs e da Anthropic e o Agent ID gravados nas Script Properties (pelo Davi).
+- ✅ App da web implantado ("v1 - workshop", executar como Davi, acesso Qualquer pessoa): `https://script.google.com/macros/s/AKfycbwXoiuekCrxQAZncSYzJbp2c8p8C-Ik3JDUL-gXJ4kDrZW3xqZwqAgCqnZhoVBAVEQ/exec`
+  - testado: `doGet` devolve desafios e bots só com campos públicos; `?acao=ranking` devolve `{"ranking":[]}`.
+- ✅ Chave `config-temporaria` apagada pelo Davi.
+- 🐛 Corrigido: a fórmula da aba Ranking dava erro de análise em planilha pt-BR (separador `;`). O `Codigo.gs` agora escolhe o separador pelo idioma e usa `IFERROR` enquanto a aba Ligacoes está vazia.
 
 ## 10. Próximos passos (em ordem)
 
-1. [ ] **Apagar a chave `config-temporaria`** na ElevenLabs e criar uma nova (ElevenAgents = Escrita) para o Apps Script.
-2. [ ] **Pegar uma chave da API da Anthropic** (console.anthropic.com).
-3. [ ] **Criar a planilha** e colar `coldcall/apps-script/Codigo.gs` em Extensões → Apps Script.
-4. [ ] Rodar **Configurar planilha e pastas** e depois **Configurar chaves e agente** (Agent ID `agent_1301m6210yfwfrcb95egc9w0jvfr`).
-5. [ ] **Implantar como App da Web** e colar a URL em `API_URL` de `index.html` e `ranking.html`. Commit no branch.
+1. [x] **Apagar a chave `config-temporaria`** na ElevenLabs e criar uma nova (ElevenAgents = Escrita) para o Apps Script.
+2. [x] **Pegar uma chave da API da Anthropic** (console.anthropic.com).
+3. [x] **Criar a planilha** e colar `coldcall/apps-script/Codigo.gs` em Extensões → Apps Script.
+4. [x] Rodar **Configurar planilha e pastas** e depois **Configurar chaves e agente** (Agent ID `agent_1301m6210yfwfrcb95egc9w0jvfr`).
+5. [x] **Implantar como App da Web** e colar a URL em `API_URL` de `index.html` e `ranking.html`. Commit no branch.
 6. [ ] **Liberar o merge** do branch `coldcall-simulador` no `main` (com ok do Davi) para publicar no GitHub Pages.
 7. [ ] **Teste de ponta a ponta:**
    - uma ligação real pela página;

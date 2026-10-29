@@ -98,7 +98,7 @@
 <script>
 // ===== Configuração =====
 // URL do Apps Script publicado como app da web. Também aceita ?api=... na URL.
-const API_URL = new URLSearchParams(location.search).get("api") || "";
+const API_URL = new URLSearchParams(location.search).get("api") || "https://script.google.com/macros/s/AKfycbwXoiuekCrxQAZncSYzJbp2c8p8C-Ik3JDUL-gXJ4kDrZW3xqZwqAgCqnZhoVBAVEQ/exec";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
