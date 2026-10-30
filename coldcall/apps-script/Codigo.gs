@@ -24,13 +24,14 @@ const CONFIG = {
   VERMELHO:         '#ffcdd2',
 };
 
-// requisito: número do desafio que precisa ser cumprido antes (vazio = sempre aberto)
-const COLS_DESAFIOS = ['numero', 'ativo', 'titulo', 'descricao', 'objetivo', 'contexto', 'requisito'];
+const COLS_DESAFIOS = ['numero', 'ativo', 'titulo', 'descricao', 'objetivo', 'contexto'];
+// fase: 1, 2… — um caso só abre quando todos os casos das fases anteriores foram vencidos
+// requisito: id do caso que precisa ser vencido antes (o par do desafio anterior); vazio = sem par
 const COLS_BOTS     = ['id', 'ativo', 'desafio', 'nome', 'ficha', 'saudacao', 'voz_id',
-                       'roteiro', 'objetivos', 'objetivos_secretos', 'gabarito'];
+                       'roteiro', 'objetivos', 'objetivos_secretos', 'gabarito', 'fase', 'requisito'];
 // Campos que a página recebe. Objetivos e pontos NÃO saem da planilha.
-const PUBLICOS_DESAFIOS = ['numero', 'titulo', 'descricao', 'objetivo', 'contexto', 'requisito'];
-const PUBLICOS_BOTS     = ['id', 'desafio', 'nome', 'ficha', 'saudacao', 'voz_id', 'roteiro', 'gabarito'];
+const PUBLICOS_DESAFIOS = ['numero', 'titulo', 'descricao', 'objetivo', 'contexto'];
+const PUBLICOS_BOTS     = ['id', 'desafio', 'nome', 'ficha', 'saudacao', 'voz_id', 'roteiro', 'gabarito', 'fase', 'requisito'];
 
 const COLS_O = Array.from({ length: CONFIG.MAX_OBJ }, (_, i) => 'O' + (i + 1));
 const COLS_S = Array.from({ length: CONFIG.MAX_SEC }, (_, i) => 'S' + (i + 1));
@@ -149,7 +150,7 @@ function reprocessarErros() {
 // App da web:
 //   ?acao=ranking                → ranking por vendedor (página do pódio)
 //   ?acao=resultado&conv=ID      → % de informação extraída numa ligação (avalia na hora se preciso)
-//   ?acao=progresso&vendedor=X   → desafios com requisito já liberados para o vendedor
+//   ?acao=progresso&vendedor=X   → casos (bots) que o vendedor já venceu
 //   sem parâmetro                → desafios e bots ativos, só campos públicos (página do simulador)
 function doGet(e) {
   const p    = (e && e.parameter) || {};
@@ -159,7 +160,7 @@ function doGet(e) {
     try { return json_(resultado_(p.conv)); }
     catch (err) { console.error('resultado: ' + err.message); return json_({ erro: err.message }); }
   }
-  if (acao === 'progresso') return json_({ liberados: liberados_(abrirPlanilha_(), p.vendedor) });
+  if (acao === 'progresso') return json_({ vencidos: vencidos_(abrirPlanilha_(), p.vendedor) });
 
   const cache = CacheService.getScriptCache();
   let json = cache.get(acao);
@@ -403,35 +404,34 @@ function resultado_(conv) {
   const bot = lerTabela_(ss, CONFIG.ABA_BOTS).find(b => String(b.id) === botIdDaLinha_(r[COL.bot]));
   const max = bot ? [...parseObjetivos_(bot.objetivos), ...parseObjetivos_(bot.objetivos_secretos)].reduce((s, o) => s + o.pts, 0) : 0;
   return {
-    pronto:    true,
-    avaliada:  true,
-    pct:       max ? Math.min(100, Math.round(100 * (Number(r[COL.total]) || 0) / max)) : 0,
-    liberados: liberados_(ss, r[COL.vendedor]),
+    pronto:   true,
+    avaliada: true,
+    pct:      max ? Math.min(100, Math.round(100 * (Number(r[COL.total]) || 0) / max)) : 0,
+    sucesso:  !!bot && venceu_(r, bot),
+    vencidos: vencidos_(ss, r[COL.vendedor]),
   };
 }
 
-// Desafios com requisito que o vendedor já liberou: ele tem uma ligação avaliada no desafio
-// do requisito com todos os objetivos marcados "chave" cumpridos (sem chave: qualquer ✔ serve)
-function liberados_(ss, vendedor) {
+// Casos que o vendedor já venceu (ids dos bots), pelo nome digitado
+function vencidos_(ss, vendedor) {
   const alvo = normNome_(vendedor);
   if (!alvo) return [];
-  const comRequisito = lerTabela_(ss, CONFIG.ABA_DESAFIOS).filter(d => d.ativo === true && String(d.requisito || '').trim());
-  if (!comRequisito.length) return [];
-
-  const bots    = Object.fromEntries(lerTabela_(ss, CONFIG.ABA_BOTS).map(b => [String(b.id), b]));
-  const cumpriu = new Set();
+  const bots = Object.fromEntries(lerTabela_(ss, CONFIG.ABA_BOTS).map(b => [String(b.id), b]));
+  const out  = new Set();
   linhasLigacoes_(ss)
     .filter(r => r[COL.status] === 'ok' && normNome_(r[COL.vendedor]) === alvo)
     .forEach(r => {
-      const bot = bots[botIdDaLinha_(r[COL.bot])];
-      if (!bot) return;
-      const chaves = parseObjetivos_(bot.objetivos).map((o, i) => o.chave ? i : -1).filter(i => i >= 0);
-      const marcou = i => i < COLS_O.length && r[COL[COLS_O[i]]] === '✔';
-      const passou = chaves.length ? chaves.every(marcou) : COLS_O.some((_, i) => marcou(i));
-      if (passou) cumpriu.add(String(r[COL.desafio]).trim());
+      const id = botIdDaLinha_(r[COL.bot]);
+      if (bots[id] && venceu_(r, bots[id])) out.add(id);
     });
+  return [...out];
+}
 
-  return comRequisito.filter(d => cumpriu.has(String(d.requisito).trim())).map(d => String(d.numero));
+// Ligação vence o caso se cumpriu todos os objetivos "chave" (sem chave: qualquer ✔ serve)
+function venceu_(r, bot) {
+  const chaves = parseObjetivos_(bot.objetivos).map((o, i) => o.chave ? i : -1).filter(i => i >= 0);
+  const marcou = i => i < COLS_O.length && r[COL[COLS_O[i]]] === '✔';
+  return chaves.length ? chaves.every(marcou) : COLS_O.some((_, i) => marcou(i));
 }
 
 function buscarLigacao_(aba, conv) {
@@ -490,18 +490,18 @@ function criarAbaDesafios_(ss) {
     [1, true, 'Desafio 1 · Lead frio',
       'Você liga para a empresa sem conhecer ninguém. Quem atende raramente é quem decide.',
       'Descobrir quem é o responsável pela energia elétrica (nome e cargo) e conseguir um contato direto. Não é para vender nada.',
-      'Você atende o telefone da empresa. Quem liga é um vendedor de uma empresa de gestão de energia / mercado livre. O objetivo dele é descobrir quem é o responsável pela energia elétrica e conseguir um contato direto. Você não decide nada sobre energia.', ''],
+      'Você atende o telefone da empresa. Quem liga é um vendedor de uma empresa de gestão de energia / mercado livre. O objetivo dele é descobrir quem é o responsável pela energia elétrica e conseguir um contato direto. Você não decide nada sobre energia.'],
     [2, true, 'Desafio 2 · Primeiro contato',
       'Você já tem o nome do responsável e liga direto para ele. É o primeiro contato.',
       'Descobrir a situação energética (cativo ou livre, contrato, vencimento, quem faz a gestão, tamanho da conta) e sair com um próximo passo concreto (reunião ou envio de fatura).',
-      'Você é o responsável pela energia na empresa e está recebendo a PRIMEIRA ligação deste vendedor de gestão de energia / mercado livre. Você não conhece a empresa dele. O objetivo dele é entender sua situação energética e sair com um próximo passo (reunião ou envio de fatura).', 1],
+      'Você é o responsável pela energia na empresa e está recebendo a PRIMEIRA ligação deste vendedor de gestão de energia / mercado livre. Você não conhece a empresa dele. O objetivo dele é entender sua situação energética e sair com um próximo passo (reunião ou envio de fatura).'],
   ];
   aba.getRange(1, 1, 1, COLS_DESAFIOS.length).setValues([COLS_DESAFIOS]);
   aba.getRange(2, 1, ex.length, COLS_DESAFIOS.length).setValues(ex);
   formatarCabecalho_(aba.getRange(1, 1, 1, COLS_DESAFIOS.length));
   aba.getRange(2, 2, 50, 1).insertCheckboxes();
   aba.getRange(2, 2, ex.length, 1).setValue(true);
-  aba.getRange('A:G').setWrap(true).setVerticalAlignment('top');
+  aba.getRange('A:F').setWrap(true).setVerticalAlignment('top');
   aba.setColumnWidths(3, 4, 300);
   aba.setFrozenRows(1);
 }
@@ -515,7 +515,7 @@ function criarAbaBots_(ss) {
   aba.getRange(2, 1, ex.length, COLS_BOTS.length).setValues(ex);
   aba.getRange(2, 2, 200, 1).insertCheckboxes();                         // coluna "ativo"
   aba.getRange(2, 2, ex.length, 1).setValue(true);
-  aba.getRange('A:K').setWrap(true).setVerticalAlignment('top');
+  aba.getRange('A:M').setWrap(true).setVerticalAlignment('top');
   aba.setColumnWidths(5, 7, 320);
   aba.setFrozenRows(1);
 }
@@ -569,7 +569,7 @@ function criarPastas_(props) {
   props.setProperty('PASTA_EXEMPLOS_ID',  raiz.createFolder('Exemplos').getId());
 }
 
-// Dois bots de exemplo (um por desafio) para mostrar o formato e permitir teste
+// Dois bots de exemplo (um par: desafio 1 → desafio 2) para mostrar o formato e permitir teste
 function botsExemplo_() {
   return [
     [
@@ -582,6 +582,7 @@ function botsExemplo_() {
       'Disse nome, empresa e motivo da ligação nos primeiros 20 segundos | 10\nDescobriu o nome do responsável pela energia | 20 | chave\nDescobriu o cargo ou área do responsável | 10\nConseguiu um contato direto (ramal ou e-mail) | 20 | chave',
       'Descobriu o melhor horário para encontrar o responsável (à tarde) | 10\nConseguiu o contato sem fazer nenhum pitch de produto para a recepcionista | 10',
       'Responsável: Ricardo Bassani, gerente industrial. Ramal 230 · ricardo.bassani@metalserrana.com.br. Melhor horário: à tarde.',
+      1, '',
     ],
     [
       'ricardo', true, 2, 'Ricardo Bassani · Metalúrgica Serrana',
@@ -591,9 +592,10 @@ function botsExemplo_() {
       'Situação (revele só quando perguntado, aos poucos): está no mercado livre desde 2022, com contrato com uma comercializadora até dezembro de 2027. A própria comercializadora "faz a gestão"; não há gestora independente. Ano passado tomou uma cobrança inesperada de uns R$ 40 mil de ajuste na CCEE e ninguém explicou direito — só conte isso se o vendedor perguntar sobre surpresas ou custos inesperados.\n' +
       'Você se interessa se o vendedor perguntar antes de apresentar, entender a diferença entre comprar energia e ter alguém do seu lado fazendo gestão, e não atacar a comercializadora. Aceita reunião de 30 minutos se o vendedor propuser dia e horário.\n' +
       'Objeções: "já estamos no mercado livre", "meu contrato vai até 2027", "a comercializadora já cuida disso".',
-      'Abertura: se apresentou, disse a empresa e o motivo, e pediu poucos minutos | 10\nFez perguntas antes de apresentar o serviço | 10\nDescobriu que a empresa já está no mercado livre | 10\nDescobriu o vencimento do contrato | 15\nDescobriu quem faz a gestão hoje | 15\nSaiu com reunião marcada com dia e horário | 25',
+      'Abertura: se apresentou, disse a empresa e o motivo, e pediu poucos minutos | 10\nFez perguntas antes de apresentar o serviço | 10\nDescobriu que a empresa já está no mercado livre | 10\nDescobriu o vencimento do contrato | 15\nDescobriu quem faz a gestão hoje | 15\nSaiu com reunião marcada com dia e horário | 25 | chave',
       'Descobriu a cobrança inesperada de cerca de R$ 40 mil na CCEE | 20\nNão criticou a comercializadora atual | 10',
       'Mercado livre desde 2022, contrato até dez/2027, gestão feita pela própria comercializadora. Dor escondida: cobrança inesperada de ~R$ 40 mil na CCEE. Próximo passo ideal: reunião para diagnóstico da gestão.',
+      1, 'juliana',
     ],
   ];
 }

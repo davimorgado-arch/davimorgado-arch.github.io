@@ -54,8 +54,25 @@
   .btn-green { background:var(--green); }
   .btn-ghost { background:transparent; border:1px solid var(--line); color:var(--text); }
   .link { background:none; border:0; color:var(--muted); font-size:13px; cursor:pointer; text-decoration:underline; }
-  .ch.locked { opacity:.6; }
   .lock { font-size:12px; color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:3px 10px; white-space:nowrap; }
+
+  /* Casos: um cartão por caso, em pares (desafio 1 → desafio 2) e por fase */
+  .fase { margin-top:28px; }
+  .fase-head { display:flex; justify-content:space-between; align-items:baseline; gap:12px; margin-bottom:12px; }
+  .fase-head h2 { font-size:19px; margin:0; }
+  .prog { color:var(--muted); font-size:13px; }
+  .par { display:grid; grid-template-columns:1fr 28px 1fr; gap:10px; align-items:stretch; margin-bottom:12px; }
+  .seta { display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:18px; }
+  .case { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px; display:flex; flex-direction:column; gap:10px; }
+  .case.locked { opacity:.55; }
+  .case.won { border-color:var(--green); }
+  .case h3 { font-size:16px; margin:0; }
+  .case .ficha { font-size:13px; color:var(--muted); line-height:1.5; }
+  .case .btn { padding:10px 20px; font-size:15px; align-self:flex-start; margin-top:auto; }
+  .tag { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+  .tries { font-size:12px; color:var(--muted); white-space:nowrap; }
+  .lockmsg { margin:0; font-size:13px; color:var(--muted); line-height:1.5; }
+  @media (max-width:640px) { .par { grid-template-columns:1fr; } .seta { transform:rotate(90deg); } }
 
   /* Barra de informação extraída (tela final) */
   .bar { height:12px; border-radius:999px; background:var(--line); overflow:hidden; margin:4px 0 10px; }
@@ -101,7 +118,7 @@
   <!-- Tela 1: identificação + um card por desafio -->
   <div id="s-start" class="screen on">
     <h1>Simulador de Cold Call</h1>
-    <p class="sub">Use fone com microfone. Escolha um desafio, leia a ficha do lead e clique em Ligar. Alguns desafios só abrem depois que você cumpre o anterior.</p>
+    <p class="sub">Use fone com microfone. Comece pelos casos abertos da fase 1. Cada caso vencido no Desafio 1 abre a ligação para o decisor daquela empresa no Desafio 2. Vencendo todos os casos de uma fase, abre a próxima.</p>
     <div class="ident">
       <input id="name" type="text" placeholder="Seu nome" autocomplete="off" maxlength="40">
       <label class="consent">
@@ -135,6 +152,7 @@
         <p class="lbl">Informação extraída</p>
         <div id="bar" class="bar"><div id="bar-fill" class="bar-fill"></div></div>
         <p id="eval-msg" class="eval-msg"></p>
+        <p id="won" class="eval-msg" hidden></p>
         <p id="unlock" class="unlock" hidden></p>
       </div>
       <div class="box"><p class="lbl">Gabarito</p><div id="answer"></div></div>
@@ -165,7 +183,6 @@ const AVAL_TENTATIVAS = 48;               // …por até 4 min
 // ===== Estado =====
 let desafios = [];             // desafios ativos (aba Desafios)
 let bots = [];                 // bots ativos (aba Bots)
-const sorteado = {};           // desafio -> bot sorteado exibido no card
 let atual = null;              // { desafio, bot } da ligação em andamento
 let conversation = null;       // sessão ativa da ElevenLabs
 let ringer = null;             // controle do toque de chamada
@@ -175,7 +192,7 @@ let endReason = "";            // "user" | "agent" | "error"
 let lines = [];                // transcrição acumulada
 let muted = false;
 let convId = "";               // id da conversa na ElevenLabs (para buscar a avaliação)
-let liberados = new Set();     // desafios com requisito já liberados para este vendedor
+let vencidos = new Set();      // ids dos casos que este vendedor já venceu (calculado pela planilha)
 let avalToken = 0;             // invalida consultas de avaliação de ligações anteriores
 let progTimer = null;
 
@@ -187,52 +204,62 @@ const periodo = () => new Date().getHours() < 12 ? "bom dia" : "boa tarde";
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
 const nome = () => $("name").value.trim();
 
-// Desafios já feitos por este vendedor neste navegador (só para o selo "feito")
+// Tentativas por caso feitas por este vendedor neste navegador (só para mostrar "2 tentativas")
 function feitos() { try { return JSON.parse(localStorage.getItem("cc-feitos-" + nome()) || "{}"); } catch (e) { return {}; } }
-function marcarFeito(num) {
-  const f = feitos(); f[num] = (f[num] || 0) + 1;
+function marcarFeito(id) {
+  const f = feitos(); f[id] = (f[id] || 0) + 1;
   try { localStorage.setItem("cc-feitos-" + nome(), JSON.stringify(f)); } catch (e) {}
 }
 
 try { $("name").value = localStorage.getItem("cc-name") || ""; } catch (e) {}
-// Atualiza os selos "feito" enquanto digita (no "change" o redesenho engoliria o clique em Ligar)
-// e, quando para de digitar, busca o que esse nome já liberou
+// Atualiza os cartões enquanto digita (no "change" o redesenho engoliria o clique em Ligar)
+// e, quando para de digitar, busca os casos que esse nome já venceu
 $("name").addEventListener("input", () => {
-  if (!desafios.length) return;
-  liberados = new Set();
+  if (!bots.length) return;
+  vencidos = new Set();
   renderCards();
   clearTimeout(progTimer);
   progTimer = setTimeout(carregarProgresso, 600);
 });
 
-// Desafios com requisito liberados para o nome digitado (calculado pela planilha)
 async function carregarProgresso() {
   const n = nome();
-  if (!n || !desafios.some(d => d.requisito)) return;
+  if (!n) return;
   try {
     const r = await (await fetch(`${API_URL}?acao=progresso&vendedor=${encodeURIComponent(n)}`)).json();
     if (n !== nome()) return;                  // o nome mudou enquanto buscava
-    liberados = new Set(r.liberados || []);
+    vencidos = new Set(r.vencidos || []);
     renderCards();
   } catch (e) {
     console.error(e);
   }
 }
 
-const bloqueado = d => !!d.requisito && !liberados.has(String(d.numero));
+// ===== Regras de desbloqueio =====
+// Um caso abre quando: todos os casos das fases anteriores foram vencidos
+// e, se tiver requisito (o par do Desafio 1), esse caso foi vencido.
+const fase       = b => Number(b.fase) || 1;
+const venceu     = b => vencidos.has(String(b.id));
+const empresa    = b => String(b.nome).split(" · ")[0];
+const desafioDe  = b => desafios.find(d => String(d.numero) === String(b.desafio));
+const faseAberta = f => bots.filter(b => fase(b) < f).every(venceu);
+const aberto     = b => faseAberta(fase(b)) && (!b.requisito || vencidos.has(String(b.requisito)));
 
-// ===== Carrega desafios e bots da planilha =====
+function motivo(b) {
+  if (!faseAberta(fase(b))) return `Vença todos os casos da fase ${fase(b) - 1} para liberar.`;
+  const req = bots.find(x => String(x.id) === String(b.requisito));
+  return `Vença o caso ${req ? empresa(req) : b.requisito} no Desafio 1 para liberar.`;
+}
+
+// ===== Carrega desafios e casos (bots) da planilha =====
 async function load() {
   const err = msg => { $("grid").innerHTML = ""; $("start-err").textContent = msg; $("start-err").hidden = false; };
   if (!AGENT_ID || !API_URL) return err("Simulador não configurado (agente ou planilha).");
   try {
     const data = await (await fetch(API_URL)).json();
     desafios = data.desafios || [];
-    bots = data.bots || [];
-    // Só mostra desafios que têm pelo menos um bot ativo
-    desafios = desafios.filter(d => bots.some(b => String(b.desafio) === String(d.numero)));
-    if (!desafios.length) return err("Nenhum desafio com bots ativos na planilha.");
-    desafios.forEach(d => sortear(d.numero));
+    bots = (data.bots || []).filter(b => desafioDe(b));   // só casos de desafios ativos
+    if (!bots.length) return err("Nenhum caso ativo na planilha.");
     renderCards();
     carregarProgresso();
   } catch (e) {
@@ -242,44 +269,56 @@ async function load() {
 }
 load();
 
-// Sorteia um bot do desafio, evitando repetir o último exibido
-function sortear(num) {
-  const lista = bots.filter(b => String(b.desafio) === String(num));
-  const anterior = sorteado[num] && sorteado[num].id;
-  let pick;
-  do { pick = lista[Math.floor(Math.random() * lista.length)]; } while (lista.length > 1 && pick.id === anterior);
-  sorteado[num] = pick;
+function cartao(b) {
+  const d = desafioDe(b);
+  const tag = `<span class="tag">${esc(d.titulo)}</span>`;
+  if (!aberto(b)) {
+    // Bloqueado: esconde nome e ficha (a ficha do Desafio 2 entregaria a resposta do Desafio 1)
+    const req = b.requisito && bots.find(x => String(x.id) === String(b.requisito));
+    const titulo = req ? `${empresa(req)} · decisor` : b.requisito ? "Decisor" : b.nome;
+    return `<div class="case locked">${tag}<h3>${esc(titulo)}</h3><p class="lockmsg">🔒 ${esc(motivo(b))}</p></div>`;
+  }
+  const n = feitos()[b.id] || 0;
+  const selo = venceu(b) ? `<span class="done">✓ vencido</span>` : n ? `<span class="tries">${n} tentativa${n > 1 ? "s" : ""}</span>` : "";
+  return `
+    <div class="case${venceu(b) ? " won" : ""}">
+      <div class="ch-head">${tag}${selo}</div>
+      <h3>${esc(b.nome)}</h3>
+      <div class="ficha">${esc(b.ficha)}</div>
+      <button class="btn btn-green" data-call="${esc(b.id)}">📞 Ligar</button>
+    </div>`;
 }
 
 function renderCards() {
-  const f = feitos();
-  $("grid").innerHTML = desafios.map(d => {
-    // Bloqueado: esconde objetivo e ficha (a ficha entregaria a resposta do desafio anterior)
-    if (bloqueado(d)) {
-      const req = desafios.find(x => String(x.numero) === String(d.requisito));
-      return `
-        <div class="ch locked">
-          <div class="ch-head"><h2>${esc(d.titulo)}</h2><span class="lock">🔒 bloqueado</span></div>
-          <p>${esc(d.descricao)}</p>
-          <div class="box">Cumpra o objetivo do <b>${esc(req ? req.titulo : "Desafio " + d.requisito)}</b> para liberar.</div>
-        </div>`;
-    }
-    const b = sorteado[d.numero];
-    const selo = f[d.numero] ? `<span class="done">✓ feito${f[d.numero] > 1 ? " · " + f[d.numero] + "x" : ""}</span>` : "";
+  // Objetivo de cada desafio, uma vez no topo
+  const intro = `<div class="grid">${desafios.filter(d => bots.some(b => desafioDe(b) === d)).map(d => `
+    <div class="ch">
+      <h2>${esc(d.titulo)}</h2>
+      <p>${esc(d.descricao)}</p>
+      <div class="box goal"><p class="lbl">Seu objetivo</p>${esc(d.objetivo)}</div>
+    </div>`).join("")}</div>`;
+
+  // Pares: cada caso sem requisito puxa os casos que dependem dele
+  const fases = [...new Set(bots.map(fase))].sort((a, b) => a - b);
+  const blocos = fases.map(f => {
+    const daFase = bots.filter(b => fase(b) === f);
+    const ids    = new Set(daFase.map(b => String(b.id)));
+    const raizes = daFase.filter(b => !b.requisito || !ids.has(String(b.requisito)));
+    const pares  = raizes.map(r => {
+      const filhos = daFase.filter(b => String(b.requisito) === String(r.id));
+      return `<div class="par">${cartao(r)}${filhos.length ? `<div class="seta">→</div>${filhos.map(cartao).join("")}` : ""}</div>`;
+    }).join("");
+    const feitosNaFase = daFase.filter(venceu).length;
     return `
-      <div class="ch">
-        <div class="ch-head"><h2>${esc(d.titulo)}</h2>${selo}</div>
-        <p>${esc(d.descricao)}</p>
-        <div class="box goal"><p class="lbl">Seu objetivo</p>${esc(d.objetivo)}</div>
-        <div class="box"><p class="lbl">Ficha do lead</p><div class="ficha">${esc(b.ficha)}</div></div>
-        <div class="ch-actions">
-          <button class="btn btn-green" data-call="${esc(d.numero)}">📞 Ligar</button>
-          <button class="link" data-reroll="${esc(d.numero)}">Sortear outro lead</button>
-        </div>
-      </div>`;
+      <section class="fase">
+        <div class="fase-head"><h2>Fase ${f}</h2><span class="prog">${feitosNaFase} de ${daFase.length} casos vencidos</span></div>
+        ${pares}
+      </section>`;
   }).join("");
+
+  $("grid").classList.remove("grid");
+  $("grid").innerHTML = intro + blocos;
   document.querySelectorAll("[data-call]").forEach(el => el.onclick = () => call(el.dataset.call));
-  document.querySelectorAll("[data-reroll]").forEach(el => el.onclick = () => { sortear(el.dataset.reroll); renderCards(); });
 }
 
 // ===== Toque de chamada (padrão brasileiro: 425 Hz) gerado no navegador =====
@@ -304,7 +343,7 @@ function startRinging() {
 }
 
 // ===== Fluxo da ligação =====
-async function call(num) {
+async function call(id) {
   // Validações: nome e aceite de gravação
   const msg = !nome() ? "Digite seu nome antes de ligar." : !$("consent").checked ? "Marque o aceite de gravação antes de ligar." : "";
   if (msg) { $("start-err").textContent = msg; $("start-err").hidden = false; (nome() ? $("consent") : $("name")).focus(); return; }
@@ -321,9 +360,9 @@ async function call(num) {
     return;
   }
 
-  const desafio = desafios.find(d => String(d.numero) === String(num));
-  if (bloqueado(desafio)) return;
-  const bot = sorteado[num];
+  const bot = bots.find(b => String(b.id) === String(id));
+  if (!bot || !aberto(bot)) return;
+  const desafio = desafioDe(bot);
   atual = { desafio, bot };
 
   // Zera estado da ligação anterior
@@ -407,8 +446,9 @@ function finish() {
   $("answer").textContent = atual ? (atual.bot.gabarito || "—") : "";
   // Conta como "feito" e é avaliada só se a ligação foi atendida e houve fala do vendedor
   const falou = !!(atual && startedAt && lines.some(l => l.role === "user"));
-  if (falou) marcarFeito(atual.desafio.numero);
+  if (falou) marcarFeito(atual.bot.id);
   $("unlock").hidden = true;
+  $("won").hidden = true;
   if (falou && convId) {
     $("bar").classList.add("loading");
     $("bar-fill").style.width = "";
@@ -437,11 +477,14 @@ async function acompanharAvaliacao(id, token) {
       if (!r.pronto) continue;
       if (!r.avaliada) return mostrarAvaliacao(null, "Não foi possível avaliar esta ligação.");
 
-      // Desafios que esta ligação acabou de liberar
-      const novos = desafios.filter(d => d.requisito && !liberados.has(String(d.numero)) && (r.liberados || []).includes(String(d.numero)));
-      liberados = new Set(r.liberados || []);
+      // Caso vencido nesta ligação e casos que ela acabou de liberar
+      const antes = new Set(bots.filter(aberto).map(b => String(b.id)));
+      vencidos = new Set(r.vencidos || []);
+      const novos = bots.filter(b => aberto(b) && !antes.has(String(b.id)));
+      $("won").textContent = r.sucesso ? "✓ Caso vencido!" : "Ainda não venceu este caso: confira o objetivo do desafio e tente de novo.";
+      $("won").hidden = false;
       if (novos.length) {
-        $("unlock").textContent = "🔓 Liberado: " + novos.map(d => d.titulo).join(", ");
+        $("unlock").textContent = "🔓 Liberado: " + novos.map(b => b.nome).join(", ");
         $("unlock").hidden = false;
       }
       return mostrarAvaliacao(r.pct);
@@ -470,7 +513,6 @@ function mostrarAvaliacao(pct, msg) {
 // ===== Botões =====
 $("btn-hang").onclick = hangUp;
 $("btn-again").onclick = () => {
-  if (atual) sortear(atual.desafio.numero);   // próximo lead desse desafio é outro
   renderCards();
   show("s-start");
 };
