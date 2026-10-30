@@ -188,9 +188,6 @@ Depois: **Implantar → Nova implantação → App da Web** (executar como **Eu*
 | `ativo` | caixinha. Marcada = card aparece (se houver bot ativo no desafio) |
 | `titulo`, `descricao`, `objetivo` | textos do card |
 | `contexto` | vai para `{{contexto_desafio}}`: quem o bot é nesse desafio e o que o vendedor quer |
-| `requisito` | número do desafio que precisa ser cumprido antes. Vazio = sempre aberto. Hoje: desafio 2 → `1` |
-
-**Desbloqueio:** um desafio com `requisito` só abre para o vendedor (pelo nome digitado, sem acento e sem diferença de maiúsculas) que tiver uma ligação avaliada no desafio do requisito com **todos os objetivos `chave`** cumpridos. Se o bot do requisito não tiver nenhum objetivo `chave`, qualquer objetivo cumprido libera. Enquanto bloqueado, o card esconde objetivo e ficha (a ficha do desafio 2 entregaria a resposta do 1). Ligações antigas contam: o cálculo é feito na hora a partir da aba Ligacoes.
 
 ### Aba Bots (um personagem por linha)
 | Coluna | Uso | O front vê? |
@@ -206,6 +203,17 @@ Depois: **Implantar → Nova implantação → App da Web** (executar como **Eu*
 | `objetivos` | um por linha: `descrição \| pontos`, ou `descrição \| pontos \| chave` para os que liberam o desafio seguinte | não |
 | `objetivos_secretos` | um por linha: `descrição \| pontos` (bônus) | não |
 | `gabarito` | mostrado ao front ao desligar | sim (no fim) |
+| `fase` | 1, 2… Um caso só abre quando **todos** os casos das fases anteriores foram vencidos | sim |
+| `requisito` | id do caso que precisa ser vencido antes (o par no desafio 1). Vazio = sem par | sim |
+
+**Desbloqueio (por caso, em pares e fases):**
+- **Vencer um caso** = ter uma ligação avaliada (status `ok`) com **todos os objetivos `chave`** cumpridos. Sem nenhum `chave`, qualquer ✔ serve.
+  - Desafio 1: as chaves são o nome do responsável e um contato direto.
+  - Desafio 2: a chave é só o próximo passo (reunião marcada ou fatura conseguida). As descobertas e os secretos são bônus de pontos no ranking.
+- Cada caso do desafio 1 abre o caso **da mesma empresa** no desafio 2 (`requisito`).
+- A fase 2 abre quando o vendedor vencer os 10 casos da fase 1 (5 do desafio 1 + 5 do desafio 2).
+- É por nome digitado (sem acento, sem diferença de maiúsculas). Ligações antigas contam: o cálculo é feito na hora a partir da aba Ligacoes.
+- Cartão bloqueado do desafio 2 mostra só "Empresa · decisor": o nome e a ficha entregariam a resposta do desafio 1.
 
 \* O roteiro passa pelo navegador do front para alimentar o agente. Um front curioso conseguiria lê-lo. Objetivos e pontos nunca saem da planilha.
 
@@ -213,36 +221,23 @@ Depois: **Implantar → Nova implantação → App da Web** (executar como **Eu*
 - **Bots de exemplo** (criados pelo `configurar`):
   - `juliana`: desafio 1, recepcionista da Metalúrgica Serrana;
   - `ricardo`: desafio 2, gerente industrial já no ACL, contrato até dez/2027, dor escondida de uma cobrança de ~R$ 40 mil na CCEE.
-- **Casos cadastrados (29/10/2026): 20 bots, 10 por desafio.** 70% mercado livre, 30% cativo. Nos casos cativos marcados com ☀️, o lead está cansado de ligação de energia solar e o front precisa deixar claro logo que não vende solar. Empresas diferentes nos dois desafios, exceto a dupla Juliana → Ricardo. O roteiro completo, os objetivos e o gabarito de cada um estão na aba Bots.
+- **Casos cadastrados (30/10/2026): 20 bots em 10 pares da mesma empresa**, 70% mercado livre e 30% cativo (3 empresas cativas × 2 casos). Nos casos marcados com ☀️, o lead está cansado de ligação de energia solar e o front precisa deixar claro logo que não vende solar. O roteiro completo, os objetivos e o gabarito de cada um estão na aba Bots.
 
-| Desafio 1 (id) | Empresa | Mercado | Dificuldade | Voz |
+| Fase | Empresa | Mercado | Desafio 1 (quem atende · dificuldade · voz) | Desafio 2 (decisor · dificuldade · voz) |
 |---|---|---|---|---|
-| `juliana` | Metalúrgica Serrana | livre | filtro clássico | Jenifer (padrão) |
-| `cleide` | Rede Bom Preço | livre | transferência errada para o Compras | Marianne |
-| `patricia` | Hospital Santa Clara | livre | burocracia ("só pelo portal") | Fernanda |
-| `vera` | Plastifort ☀️ | cativo | secretária executiva + solar | Scheila |
-| `lucas` | Shopping Vale Verde | livre | atendente que não sabe | Daniel |
-| `dorival` | Frigorífico Coxilha | livre | porteiro, pessoa errada, "deixa recado" | Renato |
-| `bianca` | Faculdade Horizonte | livre | estagiária e LGPD | Nina M. |
-| `neusa` | Panificadora Trigo Bom ☀️ | cativo | solar + desliga rápido | Luana |
-| `rosana` | Têxtil Itajaí | livre | "ele não está, quer deixar recado?" | Roberta |
-| `fernanda` | Cooperativa Agrocerrado | livre | eletricista (operacional) × decisor | Sofia |
+| 1 | Metalúrgica Serrana | livre | `juliana` · filtro clássico · Jenifer | `ricardo` Ricardo Bassani · "já está resolvido" · Cirilo |
+| 1 | Rede Bom Preço | livre | `cleide` · transferência errada para o Compras · Marianne | `anderson` Anderson Lima · trauma com consultoria anterior · Antonio de Jesus |
+| 1 | Shopping Vale Verde | livre | `lucas` · atendente que não sabe · Daniel | `luciana` Luciana Teles · atenção dividida, exige concisão · Sofia |
+| 1 | Têxtil Itajaí | livre | `rosana` · "ele não está, deixa recado?" · Roberta | `claudio` Cláudio Werner · só quer preço (3 cotações) · Daniel |
+| 1 | Cooperativa Agrocerrado | livre | `fernanda` · eletricista × decisor · Sofia | `marcia` Márcia Tavares · "me manda por e-mail" · Marianne |
+| 2 | Hospital Santa Clara | livre | `patricia` · burocracia do portal · Fernanda | `fabiorocha` Eng. Fábio Rocha · técnico que testa o vendedor · Fabio Oliveira |
+| 2 | Plastifort Embalagens ☀️ | cativo | `vera` · secretária executiva + solar · Scheila | `marcelo` Marcelo Brandt · "não tenho interesse" + solar · Eduardo S. |
+| 2 | Frigorífico Coxilha | livre | `dorival` · porteiro, "deixa recado" · Renato | `simone` Simone Kraus · desconfiança depois de uma conta absurda · Scheila |
+| 2 | Faculdade Horizonte | cativo | `bianca` · estagiária e LGPD · Nina M. | `helena` Profa. Helena Saraiva · já tem proposta de concorrente · Fernanda |
+| 2 | Panificadora Trigo Bom ☀️ | cativo | `neusa` · solar + desliga rápido · Luana | `antonio` Antônio Galli · "já tenho solar" · Renato |
 
-| Desafio 2 (id) | Empresa | Mercado | Dificuldade | Voz |
-|---|---|---|---|---|
-| `ricardo` | Metalúrgica Serrana | livre | "já está resolvido" | Cirilo |
-| `sergio` | Supermercados Moretti ☀️ | cativo | desconfiança (golpe) + solar | Antonio de Jesus |
-| `carla` | Sabor do Campo ☀️ | cativo | "não tenho interesse" em 10 s | Scheila |
-| `paulo` | Química Vale do Aço | livre | técnico que testa o vendedor | Fabio Oliveira |
-| `marta` | Hotel Serra Alta | cativo | já tem proposta de concorrente | Roberta |
-| `gilberto` | Cerâmica Pagnoncelli | livre | trauma com gestora anterior | Renato |
-| `renata` | Grupo Educacional Horizonte | livre | "me manda por e-mail" | Marianne |
-| `fabio` | Autopeças Lunardi | livre | só quer preço (3 cotações) | Daniel |
-| `priscila` | Rede Lar & Casa | livre | atenção dividida, exige concisão | Sofia |
-| `tiago` | Laticínio Pura Serra ☀️ | cativo | "já tenho solar" | Eduardo S. |
-
-- **Vozes:** nenhuma se repete dentro do mesmo desafio; entre desafios, sim. As 12 vozes novas foram adicionadas em Minhas Vozes da ElevenLabs. A voz "Marx" não aceitou ser adicionada (sem mensagem de erro) e foi trocada por "Renato". Os IDs estão na coluna `voz_id`.
-- No desafio 1, todo caso tem dois objetivos `chave`: o nome do responsável e um contato direto. Vencer qualquer caso do desafio 1 libera o desafio 2.
+- **Vozes:** nenhuma se repete dentro do mesmo desafio; entre desafios, sim. A voz "Marx" não aceitou ser adicionada (sem mensagem de erro) e foi trocada por "Renato". Os IDs estão na coluna `voz_id`.
+- Os casos do desafio 2 da versão anterior (Sérgio, Carla, Paulo, Marta, Gilberto, Renata, Fábio, Priscila, Tiago, em outras empresas) foram reescritos nas empresas do desafio 1, mantendo as dificuldades. Três contatos mudaram de nome para não repetir voz: Rodrigo → Luciana Teles, Márcio → Márcia Tavares, Prof. Eduardo → Profa. Helena Saraiva. A Faculdade Horizonte passou a ser cativa.
 
 ### Aba Ligacoes (uma linha por ligação, preenchida pelo script)
 | Coluna | Conteúdo |
@@ -264,8 +259,8 @@ Fórmula `QUERY` somando o `total` por vendedor (só `status = ok`). A página `
 - Ao desligar, se o front falou, a página consulta `doGet?acao=resultado&conv=<id da conversa>` a cada 5 s, por até 4 min.
 - Se a ligação ainda não está na aba Ligacoes, o próprio `doGet` processa essa conversa na hora (com o mesmo lock do gatilho), sem esperar o ciclo de 1 min. Responde `{pronto:false}` enquanto a ElevenLabs não terminou a conversa.
 - A barra mostra `total / (soma de todos os pontos, secretos incluídos)` **sem número**, só a barra e um rótulo (≥85 "Extraiu quase tudo", ≥60 "Muito bom", ≥30 "Bom começo", abaixo disso "Ficou muita informação na mesa"). A pontuação real fica só na planilha.
-- A mesma resposta traz os desafios liberados; se a ligação liberou um novo, aparece "🔓 Liberado: …".
-- `doGet?acao=progresso&vendedor=<nome>` devolve os desafios liberados (usado ao abrir a página e ao digitar o nome).
+- A mesma resposta traz `sucesso` (a ligação venceu o caso?) e `vencidos` (casos que o vendedor já venceu). A tela mostra "✓ Caso vencido!" ou "Ainda não venceu este caso" e, se abriu algo, "🔓 Liberado: …".
+- `doGet?acao=progresso&vendedor=<nome>` devolve os casos vencidos (usado ao abrir a página e ao digitar o nome); a página calcula o que está aberto pelas colunas `fase` e `requisito`.
 
 ### Avaliação pelo Claude (dentro do `Codigo.gs`)
 - **Endpoint:** `POST https://api.anthropic.com/v1/messages`, com os cabeçalhos `anthropic-version: 2026-10-21` e `anthropic-beta: server-side-fallback-2026-07-01`.
@@ -313,7 +308,7 @@ Fórmula `QUERY` somando o `total` por vendedor (só `status = ok`). A página `
 ### Atualização de 29/10/2026
 - ✅ Ricardo com voz masculina (Cirilo). Ligação real testada pelo Davi.
 - ✅ Barra de informação extraída e desbloqueio entre desafios implementados (`index.html` e `Codigo.gs`), testados em Node e Playwright com API simulada.
-- ✅ Planilha: coluna `requisito` na aba Desafios (desafio 2 → 1); objetivos `chave` da Juliana: nome do responsável e contato direto.
+- ✅ Planilha: objetivos `chave` da Juliana: nome do responsável e contato direto. (A coluna `requisito` da aba Desafios foi substituída em 30/10 por `fase` e `requisito` na aba Bots.)
 - ✅ Apps Script colado e implantado na mesma URL: versão 3 ("v3 - erros claros no resultado").
   - Ao colar código pelo clipboard no macOS, use `LANG=en_US.UTF-8 pbcopy`; sem isso os acentos viram lixo no editor.
 - 🐛 Resolvido: as chaves não estavam nas Script Properties, então nenhuma ligação entrava na aba Ligacoes (o `sincronizar` parava em silêncio; agora registra o erro no log). O Davi salvou as chaves pelo menu.
@@ -323,7 +318,8 @@ Fórmula `QUERY` somando o `total` por vendedor (só `status = ok`). A página `
 - ✅ Página publicada no `main` (GitHub Pages) com a barra e o desbloqueio.
 - A linha do bot `erica` (teste antigo, bot que não existe mais) fica com erro; pode ser apagada à mão.
 - ✅ Decisão do Davi: só os desafios 1 e 2 ficam ligados. Em vez de desafios novos, cada desafio ganhou 10 casos (ver a tabela na seção 7, aba Bots). As ideias "cativo desconfiado" e "não tenho interesse" viraram casos do desafio 2; a Helena foi descartada.
-- ⏳ Os 18 casos novos ainda não foram testados em ligação real.
+- ✅ **30/10/2026: desbloqueio por caso.** 5 casos do desafio 1 abertos na fase 1; cada um abre o decisor da mesma empresa no desafio 2; vencendo os 10 da fase 1, abre a fase 2. A página virou um cartão por caso (o sorteio saiu). Apps Script v4 ("v4 - pares e fases") implantado na mesma URL. Testado em Node (lógica) e Playwright (página com API simulada e página publicada com API real).
+- ⏳ Os casos novos ainda não foram testados em ligação real.
 
 ## 10. Próximos passos (em ordem)
 
