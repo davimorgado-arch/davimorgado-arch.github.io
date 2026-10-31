@@ -259,6 +259,10 @@ Fórmula `QUERY` somando o `total` por vendedor (só `status = ok`). A página `
 - Ao desligar, se o front falou, a página consulta `doGet?acao=resultado&conv=<id da conversa>` a cada 5 s, por até 4 min.
 - Se a ligação ainda não está na aba Ligacoes, o próprio `doGet` processa essa conversa na hora (com o mesmo lock do gatilho), sem esperar o ciclo de 1 min. Responde `{pronto:false}` enquanto a ElevenLabs não terminou a conversa.
 - A barra mostra `total / (soma de todos os pontos, secretos incluídos)` **sem número**, só a barra e um nível: ≥85% **Excelente**, ≥60% **Bom**, ≥30% **Regular**, abaixo disso **Ruim**. A pontuação real fica só na planilha.
+- **Dicas (31/10/2026):** na avaliação, o Claude escreve também uma `dica`: uma pergunta curta que faz o vendedor pensar no objetivo [CHAVE] mais importante que ele não cumpriu, sem revelar nomes, números nem segredos do personagem. A dica fica na coluna `dica` (AB) da aba Ligacoes.
+  - A cada **2 ligações sem vencer o mesmo caso** (2ª, 4ª, 6ª…), a dica daquela ligação aparece na tela final ("💡 Pense nisso antes da próxima ligação") e fica no cartão até sair outra. Depois da 1ª, 3ª… falha, a tela avisa que a próxima tentativa sem sucesso traz uma dica.
+  - Caso vencido não mostra dica. Ligações sem fala do vendedor não contam. Ligações avaliadas antes de 31/10 não têm dica.
+  - Apps Script v6 ("v6 - dicas").
 - **Barra em cada cartão (31/10/2026):** cada caso aberto mostra o nível da **última** ligação avaliada naquele caso (pode subir ou cair em relação à anterior). Vem de `?acao=progresso` (campo `ultimas`), então aparece em qualquer navegador. Ligações sem fala do vendedor não contam. Apps Script v5 ("v5 - desempenho por caso").
 - A mesma resposta traz `sucesso` (a ligação venceu o caso?) e `vencidos` (casos que o vendedor já venceu). A tela mostra "✓ Caso vencido!" ou "Ainda não venceu este caso" e, se abriu algo, "🔓 Liberado: …".
 - `doGet?acao=progresso&vendedor=<nome>` devolve os casos vencidos (usado ao abrir a página e ao digitar o nome); a página calcula o que está aberto pelas colunas `fase` e `requisito`.

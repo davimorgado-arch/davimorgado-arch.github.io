@@ -79,6 +79,9 @@
   .nv-ruim { --nv:var(--red); } .nv-regular { --nv:#F59E0B; } .nv-bom { --nv:var(--accent); } .nv-excelente { --nv:var(--green); }
   .perf .bar-fill, .eval .bar-fill { background:var(--nv, var(--accent)); }
   .perf-top b, .eval-msg b { color:var(--nv, var(--text)); }
+  .dica { background:rgba(245,158,11,.08); border:1px solid rgba(245,158,11,.45); border-radius:12px; padding:10px 12px; font-size:13px; line-height:1.5; }
+  .dica .lbl { color:#F59E0B; margin-bottom:4px; }
+  .quase { margin:8px 0 0; font-size:13px; color:var(--muted); }
   @media (max-width:640px) { .par { grid-template-columns:1fr; } .seta { transform:rotate(90deg); } }
 
   /* Barra de informação extraída (tela final) */
@@ -161,7 +164,9 @@
         <p id="eval-msg" class="eval-msg"></p>
         <p id="won" class="eval-msg" hidden></p>
         <p id="unlock" class="unlock" hidden></p>
+        <p id="quase" class="quase" hidden></p>
       </div>
+      <div id="dica" class="dica" hidden><p class="lbl">💡 Pense nisso antes da próxima ligação</p><div id="dica-txt"></div></div>
       <div class="box"><p class="lbl">Gabarito</p><div id="answer"></div></div>
       <p class="sub">Sua pontuação é calculada automaticamente e entra no ranking.</p>
       <details>
@@ -201,6 +206,7 @@ let muted = false;
 let convId = "";               // id da conversa na ElevenLabs (para buscar a avaliação)
 let vencidos = new Set();      // ids dos casos que este vendedor já venceu (calculado pela planilha)
 let ultimas = {};              // id do caso -> % da última ligação avaliada (só vira rótulo na tela)
+let dicas = {};                // id do caso -> dica liberada (a cada 2 tentativas sem vencer)
 let avalToken = 0;             // invalida consultas de avaliação de ligações anteriores
 let progTimer = null;
 
@@ -226,6 +232,7 @@ $("name").addEventListener("input", () => {
   if (!bots.length) return;
   vencidos = new Set();
   ultimas = {};
+  dicas = {};
   renderCards();
   clearTimeout(progTimer);
   progTimer = setTimeout(carregarProgresso, 600);
@@ -239,6 +246,7 @@ async function carregarProgresso() {
     if (n !== nome()) return;                  // o nome mudou enquanto buscava
     vencidos = new Set(r.vencidos || []);
     ultimas = r.ultimas || {};
+    dicas = r.dicas || {};
     renderCards();
   } catch (e) {
     console.error(e);
@@ -300,6 +308,7 @@ function cartao(b) {
       <h3>${esc(b.nome)}</h3>
       <div class="ficha">${esc(b.ficha)}</div>
       ${barraUltima(b)}
+      ${!venceu(b) && dicas[b.id] ? `<div class="dica"><p class="lbl">💡 Dica</p>${esc(dicas[b.id])}</div>` : ""}
       <button class="btn btn-green" data-call="${esc(b.id)}">📞 Ligar</button>
     </div>`;
 }
@@ -476,6 +485,8 @@ function finish() {
   if (falou) marcarFeito(atual.bot.id);
   $("unlock").hidden = true;
   $("won").hidden = true;
+  $("quase").hidden = true;
+  $("dica").hidden = true;
   if (falou && convId) {
     $("bar").classList.add("loading");
     $("bar-fill").style.width = "";
@@ -508,6 +519,15 @@ async function acompanharAvaliacao(id, token, botId) {
       const antes = new Set(bots.filter(aberto).map(b => String(b.id)));
       vencidos = new Set(r.vencidos || []);
       ultimas[botId] = r.pct;
+      if (r.sucesso) delete dicas[botId];
+      if (r.dica) {
+        dicas[botId] = r.dica;
+        $("dica-txt").textContent = r.dica;
+        $("dica").hidden = false;
+      } else if (!r.sucesso && r.faltaParaDica === 1) {
+        $("quase").textContent = "Se a próxima tentativa não vencer o caso, você ganha uma dica.";
+        $("quase").hidden = false;
+      }
       const novos = bots.filter(b => aberto(b) && !antes.has(String(b.id)));
       $("won").textContent = r.sucesso ? "✓ Caso vencido!" : "Ainda não venceu este caso: confira o objetivo do desafio e tente de novo.";
       $("won").hidden = false;

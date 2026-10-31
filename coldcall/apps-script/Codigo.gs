@@ -38,7 +38,7 @@ const COLS_S = Array.from({ length: CONFIG.MAX_SEC }, (_, i) => 'S' + (i + 1));
 const COLS_LIG = ['conversation_id', 'data', 'vendedor', 'desafio', 'bot', 'duracao_s',
                   'objetivos', 'secretos', 'pts_objetivos', 'pts_secretos', 'total',
                   ...COLS_O, ...COLS_S,
-                  'feedback', 'detalhe', 'audio', 'transcricao', 'exemplo', 'copiado', 'status'];
+                  'feedback', 'detalhe', 'audio', 'transcricao', 'exemplo', 'copiado', 'status', 'dica'];
 const COL = Object.fromEntries(COLS_LIG.map((c, i) => [c, i]));   // índice 0-based por nome
 
 // ─── MENU ────────────────────────────────────────────────────
@@ -150,7 +150,7 @@ function reprocessarErros() {
 // App da web:
 //   ?acao=ranking                → ranking por vendedor (página do pódio)
 //   ?acao=resultado&conv=ID      → % de informação extraída numa ligação (avalia na hora se preciso)
-//   ?acao=progresso&vendedor=X   → casos que o vendedor já venceu e % da última ligação em cada caso
+//   ?acao=progresso&vendedor=X   → casos vencidos, % da última ligação e dica de cada caso
 //   sem parâmetro                → desafios e bots ativos, só campos públicos (página do simulador)
 function doGet(e) {
   const p    = (e && e.parameter) || {};
@@ -160,7 +160,10 @@ function doGet(e) {
     try { return json_(resultado_(p.conv)); }
     catch (err) { console.error('resultado: ' + err.message); return json_({ erro: err.message }); }
   }
-  if (acao === 'progresso') return json_(progresso_(abrirPlanilha_(), p.vendedor));
+  if (acao === 'progresso') {
+    const { vencidos, ultimas, dicas, falhas } = progresso_(abrirPlanilha_(), p.vendedor);
+    return json_({ vencidos, ultimas, dicas, falhas });
+  }
 
   const cache = CacheService.getScriptCache();
   let json = cache.get(acao);
@@ -295,6 +298,7 @@ function processarConversa_(id, bots, pastas, props, detalhe) {
     ...secretos.map((o, i)  => linhaDetalhe_(o, resSec[i], '★ ')),
   ].join('\n');
   l[COL.feedback] = aval.feedback || '';
+  l[COL.dica]     = aval.dica || '';
   l[COL.status]   = 'ok';
   return { linha: l, notas };
 }
@@ -302,7 +306,7 @@ function processarConversa_(id, bots, pastas, props, detalhe) {
 // ─── AVALIAÇÃO (Claude) ──────────────────────────────────────
 
 function avaliar_(roteiro, objetivos, secretos, transcricao, props) {
-  const lista = arr => arr.length ? arr.map((o, i) => `${i + 1}. ${o.desc}`).join('\n') : '(nenhum)';
+  const lista = arr => arr.length ? arr.map((o, i) => `${i + 1}. ${o.desc}${o.chave ? ' [CHAVE]' : ''}`).join('\n') : '(nenhum)';
 
   const system =
     'Você avalia um treinamento de prospecção por telefone no mercado livre de energia. ' +
@@ -310,7 +314,11 @@ function avaliar_(roteiro, objetivos, secretos, transcricao, props) {
     'se cada objetivo foi cumprido. Marque cumprido apenas com evidência clara na transcrição. ' +
     'A transcrição vem de reconhecimento de voz e pode ter erros de grafia: não penalize isso. ' +
     'Em "evidencia", cite em poucas palavras o trecho que comprova (ou por que não foi cumprido). ' +
-    'Em "feedback", escreva 2 a 3 frases diretas ao vendedor: o que fez bem e o que melhorar.';
+    'Em "feedback", escreva 2 a 3 frases diretas ao vendedor: o que fez bem e o que melhorar. ' +
+    'Em "dica", escreva UMA pergunta curta (até 25 palavras), em segunda pessoa, que faça o vendedor refletir ' +
+    'sobre o objetivo marcado [CHAVE] mais importante que ele não cumpriu (se cumpriu todos, sobre o que mais limitou a ligação). ' +
+    'A dica faz pensar, não entrega: não revele nomes, ramais, números, horários nem nada que o personagem esconde, ' +
+    'e não diga a frase pronta que ele deveria falar. Ex.: "O que a recepcionista precisava ouvir para confiar em você?"';
 
   const user =
     `<personagem>\n${roteiro}\n</personagem>\n\n` +
@@ -335,8 +343,9 @@ function avaliar_(roteiro, objetivos, secretos, transcricao, props) {
       objetivos: { type: 'array', items: item },
       secretos:  { type: 'array', items: item },
       feedback:  { type: 'string' },
+      dica:      { type: 'string' },
     },
-    required: ['objetivos', 'secretos', 'feedback'],
+    required: ['objetivos', 'secretos', 'feedback', 'dica'],
     additionalProperties: false,
   };
 
@@ -401,53 +410,55 @@ function resultado_(conv) {
   }
 
   if (r[COL.status] !== 'ok') return { pronto: true, avaliada: false };
-  const bot = lerTabela_(ss, CONFIG.ABA_BOTS).find(b => String(b.id) === botIdDaLinha_(r[COL.bot]));
+  const id   = botIdDaLinha_(r[COL.bot]);
+  const bot  = lerTabela_(ss, CONFIG.ABA_BOTS).find(b => String(b.id) === id);
+  const prog = progresso_(ss, r[COL.vendedor]);
   return {
     pronto:   true,
     avaliada: true,
     pct:      pctLinha_(r, bot),
     sucesso:  !!bot && venceu_(r, bot),
-    vencidos: vencidos_(ss, r[COL.vendedor]),
+    vencidos: prog.vencidos,
+    // Dica só quando esta ligação completou mais 2 tentativas sem vencer o caso
+    dica:     prog.dicaConv[id] === conv ? prog.dicas[id] : '',
+    // 1 = a próxima tentativa sem sucesso traz uma dica
+    faltaParaDica: prog.falhas[id] ? 2 - (prog.falhas[id] % 2 || 2) : 0,
   };
 }
 
 // Progresso do vendedor (pelo nome digitado):
 //   vencidos → ids dos casos já vencidos
 //   ultimas  → { id do caso: % da última ligação avaliada nesse caso } (pode subir ou cair)
+//   dicas    → { id do caso: dica } — a cada 2 ligações sem vencer o caso, a dica da 2ª, 4ª, 6ª…
+//   falhas   → { id do caso: ligações avaliadas sem vencer } (só de casos ainda não vencidos)
 function progresso_(ss, vendedor) {
-  const alvo = normNome_(vendedor);
-  if (!alvo) return { vencidos: [], ultimas: {} };
-  const bots     = Object.fromEntries(lerTabela_(ss, CONFIG.ABA_BOTS).map(b => [String(b.id), b]));
+  const vazio = { vencidos: [], ultimas: {}, dicas: {}, falhas: {}, dicaConv: {} };
+  const alvo  = normNome_(vendedor);
+  if (!alvo) return vazio;
+  const bots = Object.fromEntries(lerTabela_(ss, CONFIG.ABA_BOTS).map(b => [String(b.id), b]));
+  const out  = vazio;
   const vencidos = new Set();
-  const ultimas  = {};
-  const quando   = {};
+  const quando = r => new Date(r[COL.data]).getTime() || 0;
+
   linhasLigacoes_(ss)
     .filter(r => r[COL.status] === 'ok' && normNome_(r[COL.vendedor]) === alvo)
+    // Ligação sem fala do vendedor não foi avaliada (sem ✔/✘): não conta para nada
+    .filter(r => COLS_O.some(c => r[COL[c]]))
+    .sort((a, b) => quando(a) - quando(b))          // ordem em que as ligações aconteceram
     .forEach(r => {
       const id = botIdDaLinha_(r[COL.bot]);
       if (!bots[id]) return;
-      if (venceu_(r, bots[id])) vencidos.add(id);
-      // Ligação sem fala do vendedor não foi avaliada (sem ✔/✘): não conta como "última"
-      if (!COLS_O.some(c => r[COL[c]])) return;
-      const t = new Date(r[COL.data]).getTime() || 0;
-      if (quando[id] === undefined || t >= quando[id]) { quando[id] = t; ultimas[id] = pctLinha_(r, bots[id]); }
+      out.ultimas[id] = pctLinha_(r, bots[id]);
+      if (vencidos.has(id)) return;
+      if (venceu_(r, bots[id])) { vencidos.add(id); return; }
+      const n = out.falhas[id] = (out.falhas[id] || 0) + 1;
+      if (n % 2 === 0 && r[COL.dica]) { out.dicas[id] = String(r[COL.dica]); out.dicaConv[id] = r[COL.conversation_id]; }
     });
-  return { vencidos: [...vencidos], ultimas };
-}
 
-// Casos que o vendedor já venceu (ids dos bots), pelo nome digitado
-function vencidos_(ss, vendedor) {
-  const alvo = normNome_(vendedor);
-  if (!alvo) return [];
-  const bots = Object.fromEntries(lerTabela_(ss, CONFIG.ABA_BOTS).map(b => [String(b.id), b]));
-  const out  = new Set();
-  linhasLigacoes_(ss)
-    .filter(r => r[COL.status] === 'ok' && normNome_(r[COL.vendedor]) === alvo)
-    .forEach(r => {
-      const id = botIdDaLinha_(r[COL.bot]);
-      if (bots[id] && venceu_(r, bots[id])) out.add(id);
-    });
-  return [...out];
+  // Caso vencido não precisa de dica
+  vencidos.forEach(id => { delete out.dicas[id]; delete out.falhas[id]; delete out.dicaConv[id]; });
+  out.vencidos = [...vencidos];
+  return out;
 }
 
 // % de pontos da ligação sobre o máximo do caso (objetivos + secretos)
