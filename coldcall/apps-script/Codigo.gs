@@ -150,7 +150,7 @@ function reprocessarErros() {
 // App da web:
 //   ?acao=ranking                → ranking por vendedor (página do pódio)
 //   ?acao=resultado&conv=ID      → % de informação extraída numa ligação (avalia na hora se preciso)
-//   ?acao=progresso&vendedor=X   → casos (bots) que o vendedor já venceu
+//   ?acao=progresso&vendedor=X   → casos que o vendedor já venceu e % da última ligação em cada caso
 //   sem parâmetro                → desafios e bots ativos, só campos públicos (página do simulador)
 function doGet(e) {
   const p    = (e && e.parameter) || {};
@@ -160,7 +160,7 @@ function doGet(e) {
     try { return json_(resultado_(p.conv)); }
     catch (err) { console.error('resultado: ' + err.message); return json_({ erro: err.message }); }
   }
-  if (acao === 'progresso') return json_({ vencidos: vencidos_(abrirPlanilha_(), p.vendedor) });
+  if (acao === 'progresso') return json_(progresso_(abrirPlanilha_(), p.vendedor));
 
   const cache = CacheService.getScriptCache();
   let json = cache.get(acao);
@@ -402,14 +402,37 @@ function resultado_(conv) {
 
   if (r[COL.status] !== 'ok') return { pronto: true, avaliada: false };
   const bot = lerTabela_(ss, CONFIG.ABA_BOTS).find(b => String(b.id) === botIdDaLinha_(r[COL.bot]));
-  const max = bot ? [...parseObjetivos_(bot.objetivos), ...parseObjetivos_(bot.objetivos_secretos)].reduce((s, o) => s + o.pts, 0) : 0;
   return {
     pronto:   true,
     avaliada: true,
-    pct:      max ? Math.min(100, Math.round(100 * (Number(r[COL.total]) || 0) / max)) : 0,
+    pct:      pctLinha_(r, bot),
     sucesso:  !!bot && venceu_(r, bot),
     vencidos: vencidos_(ss, r[COL.vendedor]),
   };
+}
+
+// Progresso do vendedor (pelo nome digitado):
+//   vencidos → ids dos casos já vencidos
+//   ultimas  → { id do caso: % da última ligação avaliada nesse caso } (pode subir ou cair)
+function progresso_(ss, vendedor) {
+  const alvo = normNome_(vendedor);
+  if (!alvo) return { vencidos: [], ultimas: {} };
+  const bots     = Object.fromEntries(lerTabela_(ss, CONFIG.ABA_BOTS).map(b => [String(b.id), b]));
+  const vencidos = new Set();
+  const ultimas  = {};
+  const quando   = {};
+  linhasLigacoes_(ss)
+    .filter(r => r[COL.status] === 'ok' && normNome_(r[COL.vendedor]) === alvo)
+    .forEach(r => {
+      const id = botIdDaLinha_(r[COL.bot]);
+      if (!bots[id]) return;
+      if (venceu_(r, bots[id])) vencidos.add(id);
+      // Ligação sem fala do vendedor não foi avaliada (sem ✔/✘): não conta como "última"
+      if (!COLS_O.some(c => r[COL[c]])) return;
+      const t = new Date(r[COL.data]).getTime() || 0;
+      if (quando[id] === undefined || t >= quando[id]) { quando[id] = t; ultimas[id] = pctLinha_(r, bots[id]); }
+    });
+  return { vencidos: [...vencidos], ultimas };
 }
 
 // Casos que o vendedor já venceu (ids dos bots), pelo nome digitado
@@ -425,6 +448,12 @@ function vencidos_(ss, vendedor) {
       if (bots[id] && venceu_(r, bots[id])) out.add(id);
     });
   return [...out];
+}
+
+// % de pontos da ligação sobre o máximo do caso (objetivos + secretos)
+function pctLinha_(r, bot) {
+  const max = bot ? [...parseObjetivos_(bot.objetivos), ...parseObjetivos_(bot.objetivos_secretos)].reduce((s, o) => s + o.pts, 0) : 0;
+  return max ? Math.min(100, Math.round(100 * (Number(r[COL.total]) || 0) / max)) : 0;
 }
 
 // Ligação vence o caso se cumpriu todos os objetivos "chave" (sem chave: qualquer ✔ serve)
