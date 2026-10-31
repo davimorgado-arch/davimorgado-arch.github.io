@@ -258,7 +258,8 @@ Fórmula `QUERY` somando o `total` por vendedor (só `status = ok`). A página `
 ### Barra de informação extraída (tela final)
 - Ao desligar, se o front falou, a página consulta `doGet?acao=resultado&conv=<id da conversa>` a cada 5 s, por até 4 min.
 - Se a ligação ainda não está na aba Ligacoes, o próprio `doGet` processa essa conversa na hora (com o mesmo lock do gatilho), sem esperar o ciclo de 1 min. Responde `{pronto:false}` enquanto a ElevenLabs não terminou a conversa.
-- A barra mostra `total / (soma de todos os pontos, secretos incluídos)` **sem número**, só a barra e um rótulo (≥85 "Extraiu quase tudo", ≥60 "Muito bom", ≥30 "Bom começo", abaixo disso "Ficou muita informação na mesa"). A pontuação real fica só na planilha.
+- A barra mostra `total / (soma de todos os pontos, secretos incluídos)` **sem número**, só a barra e um nível: ≥85% **Excelente**, ≥60% **Bom**, ≥30% **Regular**, abaixo disso **Ruim**. A pontuação real fica só na planilha.
+- **Barra em cada cartão (31/10/2026):** cada caso aberto mostra o nível da **última** ligação avaliada naquele caso (pode subir ou cair em relação à anterior). Vem de `?acao=progresso` (campo `ultimas`), então aparece em qualquer navegador. Ligações sem fala do vendedor não contam. Apps Script v5 ("v5 - desempenho por caso").
 - A mesma resposta traz `sucesso` (a ligação venceu o caso?) e `vencidos` (casos que o vendedor já venceu). A tela mostra "✓ Caso vencido!" ou "Ainda não venceu este caso" e, se abriu algo, "🔓 Liberado: …".
 - `doGet?acao=progresso&vendedor=<nome>` devolve os casos vencidos (usado ao abrir a página e ao digitar o nome); a página calcula o que está aberto pelas colunas `fase` e `requisito`.
 
