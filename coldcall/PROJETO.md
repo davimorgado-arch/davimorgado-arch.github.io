@@ -106,6 +106,7 @@ O front escolhe o desafio que quiser, em qualquer ordem. Novos desafios (3, 4…
 - **Variáveis enviadas:** `bot_id`, `desafio`, `contexto_desafio`, `roteiro`, `saudacao`. Na `saudacao`, `{periodo}` é trocado por "bom dia" ou "boa tarde".
 - **Comportamentos cobertos:**
   - o microfone é pedido antes do toque, para o pop-up não surgir no meio da ligação;
+  - o toque para no primeiro sinal de que o lead atendeu (sessão aberta, onConnect, primeira fala do agente), porque alguns agentes começam a falar antes do onConnect;
   - se o front desliga enquanto a conexão abre, a sessão é encerrada (corrida tratada);
   - o selo "✓ feito" do card é guardado no `localStorage`, por nome do front;
   - um bug foi corrigido: redesenhar os cards no `change` do campo de nome engolia o clique em Ligar. Agora o redesenho acontece no `input`.

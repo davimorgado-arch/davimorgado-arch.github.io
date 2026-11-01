@@ -429,8 +429,9 @@ async function call(id) {
     onConnect: onAnswered,
     onDisconnect: d => { endReason = endReason || d.reason; finish(); },
     onError: m => { console.error(m); endReason = endReason || "error"; },
-    onModeChange: ({ mode }) => $("avatar").classList.toggle("speaking", mode === "speaking"),
-    onMessage: m => lines.push({ role: m.role, text: m.message }),
+    // Alguns agentes começam a falar antes do onConnect: a primeira fala também conta como "atendeu"
+    onModeChange: ({ mode }) => { if (mode === "speaking") onAnswered(); $("avatar").classList.toggle("speaking", mode === "speaking"); },
+    onMessage: m => { if (m.role !== "user") onAnswered(); lines.push({ role: m.role, text: m.message }); },
   };
   // Voz específica do bot (exige override de voz liberado no agente)
   if (bot.voz_id) options.overrides = { tts: { voiceId: String(bot.voz_id) } };
@@ -438,6 +439,7 @@ async function call(id) {
   try {
     conversation = await ElevenLabsClient.Conversation.startSession(options);
     convId = conversation.getId();
+    onAnswered();                // sessão aberta: o lead já atendeu, mesmo se o onConnect não veio
     // Vendedor desligou enquanto a conexão abria: encerra a sessão que acabou de nascer
     if (endReason === "user") await conversation.endSession();
   } catch (e) {
@@ -449,8 +451,8 @@ async function call(id) {
 
 // Lead atendeu: para o toque e inicia o cronômetro
 function onAnswered() {
-  if (endReason) return;         // ligação já foi cancelada
   if (ringer) { ringer.stop(); ringer = null; }
+  if (endReason || startedAt) return;   // ligação cancelada ou já atendida
   startedAt = Date.now();
   $("btn-mute").disabled = false;
   timerId = setInterval(() => {
