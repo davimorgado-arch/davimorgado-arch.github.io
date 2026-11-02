@@ -20,6 +20,7 @@
   .screen.on { display:block; }
   h1 { font-size:26px; margin:0 0 6px; }
   .sub { color:var(--muted); font-size:15px; margin:0 0 24px; line-height:1.5; }
+  .aviso-teste { background:rgba(245,158,11,.12); border:1px solid rgba(245,158,11,.5); color:#FBBF24; border-radius:12px; padding:10px 14px; font-size:14px; margin:0 0 16px; }
   .warn { color:#FCA5A5; font-size:14px; margin:12px 0 0; }
 
   /* Identificação */
@@ -133,6 +134,7 @@
   <!-- Tela 1: identificação + um card por desafio -->
   <div id="s-start" class="screen on">
     <h1>Simulador de Cold Call</h1>
+    <p id="aviso-teste" class="aviso-teste" hidden>🧪 Modo de teste: todos os casos abertos. As ligações são avaliadas e entram no ranking normalmente.</p>
     <p class="sub">Use fone com microfone. Comece pelos casos abertos da fase 1. Cada caso vencido no Desafio 1 abre a ligação para o decisor daquela empresa no Desafio 2. Vencendo todos os casos de uma fase, abre a próxima.</p>
     <div class="ident">
       <input id="name" type="text" placeholder="Seu nome" autocomplete="off" maxlength="40">
@@ -193,6 +195,7 @@
 const qs = new URLSearchParams(location.search);
 const AGENT_ID = qs.get("agent") || "agent_1301m6210yfwfrcb95egc9w0jvfr";   // agente único da ElevenLabs
 const API_URL  = qs.get("api")   || "https://script.google.com/macros/s/AKfycbwXoiuekCrxQAZncSYzJbp2c8p8C-Ik3JDUL-gXJ4kDrZW3xqZwqAgCqnZhoVBAVEQ/exec";   // URL do Apps Script publicado como app da web
+const TESTE    = qs.has("teste");     // ?teste=1: todos os casos abertos, para testar (as ligações contam normalmente)
 const MIN_RINGS = 2;                      // toques mínimos antes do lead atender
 const MAX_RINGS = 3;                      // sorteia entre MIN e MAX para não ficar previsível
 const AVAL_INTERVALO = 5000;              // consulta o resultado da avaliação a cada 5 s…
@@ -272,7 +275,8 @@ const venceu     = b => vencidos.has(String(b.id));
 const empresa    = b => String(b.nome).split(" · ")[0];
 const desafioDe  = b => desafios.find(d => String(d.numero) === String(b.desafio));
 const faseAberta = f => bots.filter(b => fase(b) < f).every(venceu);
-const aberto     = b => faseAberta(fase(b)) && (!b.requisito || vencidos.has(String(b.requisito)));
+if (TESTE) $("aviso-teste").hidden = false;
+const aberto     = b => TESTE || faseAberta(fase(b)) && (!b.requisito || vencidos.has(String(b.requisito)));
 
 function motivo(b) {
   if (!faseAberta(fase(b))) return `Vença todos os casos da fase ${fase(b) - 1} para liberar.`;
