@@ -12,6 +12,7 @@ const CONFIG = {
   ABA_BOTS:         'Bots',
   ABA_LIGACOES:     'Ligacoes',
   ABA_RANKING:      'Ranking',
+  ABA_CONFIG:       'Config',    // saldo da Anthropic informado à mão (chave | valor)
   FUSO:             'America/Sao_Paulo',
   NOME_PASTA:       'Simulador Cold Call',
   MODELO:           'claude-opus-5-5',
@@ -56,6 +57,16 @@ function onOpen() {
     .addItem('🔄 Processar ligações agora', 'processarAgora')
     .addItem('♻️ Reprocessar ligações com erro', 'reprocessarErros')
     .addToUi();
+}
+
+// Ao editar o saldo da Anthropic na aba Config, registra quando ele foi informado
+function onEdit(e) {
+  const aba = e.range.getSheet();
+  if (aba.getName() !== CONFIG.ABA_CONFIG || e.range.getColumn() !== 2) return;
+  if (aba.getRange(e.range.getRow(), 1).getValue() !== 'saldo_anthropic_usd') return;
+  const linhas = aba.getRange(1, 1, aba.getLastRow(), 1).getValues();
+  const i = linhas.findIndex(l => l[0] === 'saldo_anthropic_em');
+  if (i >= 0) aba.getRange(i + 1, 2).setValue(new Date());
 }
 
 // ─── ENTRADAS PRINCIPAIS ─────────────────────────────────────
@@ -465,7 +476,8 @@ function custos_() {
   if (salvo) return JSON.parse(salvo);
 
   const props = PropertiesService.getScriptProperties().getProperties();
-  const linhas = linhasLigacoes_(abrirPlanilha_());
+  const ss = abrirPlanilha_();
+  const linhas = linhasLigacoes_(ss);
   const avaliadas = linhas.filter(r => r[COL.status] === 'ok' && COLS_O.some(c => r[COL[c]]));
   const comCusto  = avaliadas.filter(r => r[COL.custo_usd] !== '' && r[COL.custo_usd] != null);
   const soma = (arr, c) => arr.reduce((s, r) => s + (Number(r[COL[c]]) || 0), 0);
@@ -474,6 +486,17 @@ function custos_() {
   const semCusto  = avaliadas.length - comCusto.length;            // avaliações de antes do registro de custo
   const gasto     = gastoReal + semCusto * media;
   const credito   = Number(props.CREDITO_ANTHROPIC_USD) || CONFIG.CREDITO_PADRAO_USD;
+
+  // Saldo: o último valor copiado do console da Anthropic (aba Config) menos as avaliações feitas depois.
+  // Sem a aba, cai no crédito comprado menos o gasto estimado.
+  const cfg = lerConfig_(ss);
+  const base = Number(cfg.saldo_anthropic_usd);
+  const em   = cfg.saldo_anthropic_em instanceof Date ? cfg.saldo_anthropic_em : new Date(cfg.saldo_anthropic_em || NaN);   // aceita texto ISO
+  let saldo = credito - gasto, gastoDesde = null;
+  if (cfg.saldo_anthropic_usd !== undefined && cfg.saldo_anthropic_usd !== '' && !isNaN(em)) {
+    gastoDesde = soma(avaliadas.filter(r => r[COL.data] instanceof Date && r[COL.data] > em), 'custo_usd');
+    saldo = base - gastoDesde;
+  }
 
   // Por dia (fuso de São Paulo)
   const dias = {};
@@ -499,7 +522,9 @@ function custos_() {
   const out = {
     atualizado: Date.now(),
     eleven,
-    claude: { gasto: round_(gasto), credito, saldo: round_(credito - gasto), avaliacoes: avaliadas.length,
+    claude: { gasto: round_(gasto), credito, saldo: round_(saldo),
+              saldoInformado: gastoDesde === null ? null : { valor: base, em: em.getTime(), gastoDesde: round_(gastoDesde) },
+              avaliacoes: avaliadas.length,
               estimadas: semCusto, mediaPorLigacao: round_(media), modelo: CONFIG.MODELO },
     ligacoes: { total: linhas.length, minutos: Math.round(soma(linhas, 'duracao_s') / 60),
                 creditos_el: soma(linhas, 'creditos_el') },
@@ -511,6 +536,13 @@ function custos_() {
 }
 
 const round_ = n => Math.round(n * 100) / 100;
+
+// Aba Config (chave | valor) como objeto; vazio se a aba não existe
+function lerConfig_(ss) {
+  const aba = ss.getSheetByName(CONFIG.ABA_CONFIG);
+  if (!aba) return {};
+  return Object.fromEntries(aba.getDataRange().getValues().slice(1).filter(l => l[0]).map(l => [String(l[0]), l[1]]));
+}
 
 // Progresso do vendedor (pelo nome digitado):
 //   vencidos → ids dos casos já vencidos

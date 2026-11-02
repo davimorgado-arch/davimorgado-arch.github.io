@@ -51,7 +51,7 @@
       <p class="info" id="el-info"></p>
     </div>
     <div class="card">
-      <p class="lbl">Claude · saldo estimado</p>
+      <p class="lbl">Claude · saldo de créditos</p>
       <p class="big" id="cl-big">—</p>
       <div class="bar" id="cl-bar"><div style="width:0"></div></div>
       <p class="info" id="cl-info"></p>
@@ -105,14 +105,23 @@ async function carregar() {
         (el.plano ? ` · plano ${el.plano}` : "") + (el.renova ? ` · renova em ${data(el.renova)}` : "");
     }
 
-    const cl = r.claude;
-    $("cl-big").innerHTML = `${usd(cl.saldo)} <small>de ${usd(cl.credito)}</small>`;
-    barra("cl-bar", cl.credito ? cl.gasto / cl.credito * 100 : 0);
-    if (cl.avaliacoes && cl.estimadas === cl.avaliacoes) {
+    const cl = r.claude, si = cl.saldoInformado;
+    if (si) {
+      // Saldo copiado do console da Anthropic (aba Config) menos as avaliações feitas depois
+      $("cl-big").innerHTML = `${usd(cl.saldo)} <small>de créditos</small>`;
+      barra("cl-bar", si.valor ? (1 - cl.saldo / si.valor) * 100 : 0);
+      $("cl-info").textContent = `Saldo do console: ${usd(si.valor)} em ${data(si.em)} ${hora(si.em).slice(0, 5)}, menos ${usd(si.gastoDesde)} das avaliações depois disso` +
+        (cl.mediaPorLigacao ? ` · ≈ ${usd(cl.mediaPorLigacao)} por ligação` : "") + " · ao recarregar, atualize na aba Config da planilha";
+    } else if (cl.avaliacoes && cl.estimadas === cl.avaliacoes) {
       $("cl-big").innerHTML = `${usd(cl.credito)} <small>crédito comprado</small>`;
+      barra("cl-bar", 0);
       $("cl-info").textContent = `${num(cl.avaliacoes)} avaliações feitas antes do registro de custo. O gasto aparece a partir da próxima ligação avaliada · ${cl.modelo}`;
-    } else $("cl-info").textContent = `Gasto ${usd(cl.gasto)} em ${num(cl.avaliacoes)} avaliações (≈ ${usd(cl.mediaPorLigacao)} cada)` +
-      (cl.estimadas ? ` · ${cl.estimadas} antigas estimadas pela média` : "") + ` · ${cl.modelo}`;
+    } else {
+      $("cl-big").innerHTML = `${usd(cl.saldo)} <small>de ${usd(cl.credito)}</small>`;
+      barra("cl-bar", cl.credito ? cl.gasto / cl.credito * 100 : 0);
+      $("cl-info").textContent = `Gasto ${usd(cl.gasto)} em ${num(cl.avaliacoes)} avaliações (≈ ${usd(cl.mediaPorLigacao)} cada)` +
+        (cl.estimadas ? ` · ${cl.estimadas} antigas estimadas pela média` : "") + ` · ${cl.modelo}`;
+    }
 
     const lg = r.ligacoes;
     $("lg-big").innerHTML = `${num(lg.total)} <small>· ${num(lg.minutos)} min</small>`;
