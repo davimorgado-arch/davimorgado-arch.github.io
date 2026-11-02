@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Custos · Cold Call</title>
+<style>
+  :root {
+    --bg:#0D1015; --card:#1B2027; --text:#F2F4F7; --muted:#9AA4B2; --line:#2A313B;
+    --accent:#60A5FA; --green:#22C55E; --amber:#F59E0B; --red:#EF4444;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; min-height:100vh; color:var(--text); overflow-x:hidden; padding:28px 16px 40px;
+    background:radial-gradient(ellipse at 50% 0%, #1E2A44 0%, var(--bg) 60%);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  .wrap { max-width:900px; margin:0 auto; }
+  h1 { font-size:clamp(26px, 4vw, 38px); margin:0; letter-spacing:-.5px; }
+  .sub { color:var(--muted); margin:6px 0 24px; font-size:14px; }
+  .sub .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--green); margin-right:6px; animation:pisca 2s infinite; }
+  @keyframes pisca { 50% { opacity:.3; } }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:14px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px; }
+  .lbl { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.6px; margin:0 0 8px; }
+  .big { font-size:32px; font-weight:800; margin:0; font-variant-numeric:tabular-nums; }
+  .big small { font-size:15px; font-weight:500; color:var(--muted); }
+  .bar { height:10px; background:#0F1318; border-radius:99px; overflow:hidden; margin:12px 0 8px; }
+  .bar > div { height:100%; border-radius:99px; background:var(--green); transition:width .8s; }
+  .bar.amber > div { background:var(--amber); } .bar.red > div { background:var(--red); }
+  .info { color:var(--muted); font-size:13px; margin:4px 0 0; line-height:1.5; }
+  .err { color:#FCA5A5; }
+  table { width:100%; border-collapse:collapse; font-size:14px; font-variant-numeric:tabular-nums; }
+  th, td { padding:8px 6px; text-align:right; border-bottom:1px solid var(--line); }
+  th:first-child, td:first-child { text-align:left; }
+  th { color:var(--muted); font-weight:500; font-size:12px; }
+  .tabela { margin-top:14px; overflow-x:auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Custos das APIs</h1>
+  <p class="sub" id="sub">Carregando…</p>
+
+  <div class="grid">
+    <div class="card">
+      <p class="lbl">ElevenLabs · créditos do mês</p>
+      <p class="big" id="el-big">—</p>
+      <div class="bar" id="el-bar"><div style="width:0"></div></div>
+      <p class="info" id="el-info"></p>
+    </div>
+    <div class="card">
+      <p class="lbl">Claude · saldo estimado</p>
+      <p class="big" id="cl-big">—</p>
+      <div class="bar" id="cl-bar"><div style="width:0"></div></div>
+      <p class="info" id="cl-info"></p>
+    </div>
+    <div class="card">
+      <p class="lbl">Ligações</p>
+      <p class="big" id="lg-big">—</p>
+      <p class="info" id="lg-info"></p>
+    </div>
+  </div>
+
+  <div class="card tabela">
+    <p class="lbl">Por dia</p>
+    <table>
+      <thead><tr><th>Dia</th><th>Ligações</th><th>Minutos</th><th>Créditos ElevenLabs</th><th>Claude (US$)</th></tr></thead>
+      <tbody id="dias"><tr><td colspan="5">—</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const API_URL = new URLSearchParams(location.search).get("api") || "https://script.google.com/macros/s/AKfycbwXoiuekCrxQAZncSYzJbp2c8p8C-Ik3JDUL-gXJ4kDrZW3xqZwqAgCqnZhoVBAVEQ/exec";
+const ATUALIZA_MS = 30000;
+const $ = id => document.getElementById(id);
+const num = n => Number(n || 0).toLocaleString("pt-BR");
+const usd = n => "US$ " + Number(n || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const hora = ms => new Date(ms).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+const data = ms => new Date(ms).toLocaleDateString("pt-BR");
+
+// Barra: verde até 70% gasto, amarela até 90%, vermelha acima
+function barra(id, pctGasto) {
+  const p = Math.max(0, Math.min(100, pctGasto));
+  $(id).className = "bar" + (p >= 90 ? " red" : p >= 70 ? " amber" : "");
+  $(id).firstElementChild.style.width = p + "%";
+}
+
+async function carregar() {
+  try {
+    const r = await (await fetch(API_URL + (API_URL.includes("?") ? "&" : "?") + "acao=custos")).json();
+    if (r.erro) throw new Error(r.erro);
+
+    const el = r.eleven || {};
+    if (el.erro) {
+      $("el-big").textContent = "—";
+      $("el-info").innerHTML = `<span class="err">Não consegui ler a assinatura: ${el.erro.replace(/</g, "&lt;")}</span><br>A chave da ElevenLabs precisa da permissão "User → Read".`;
+    } else {
+      const pct = el.limite ? el.usados / el.limite * 100 : 0;
+      $("el-big").innerHTML = `${num(el.usados)} <small>de ${num(el.limite)}</small>`;
+      barra("el-bar", pct);
+      $("el-info").textContent = `${pct.toFixed(0)}% usado · restam ${num(el.limite - el.usados)}` +
+        (el.plano ? ` · plano ${el.plano}` : "") + (el.renova ? ` · renova em ${data(el.renova)}` : "");
+    }
+
+    const cl = r.claude;
+    $("cl-big").innerHTML = `${usd(cl.saldo)} <small>de ${usd(cl.credito)}</small>`;
+    barra("cl-bar", cl.credito ? cl.gasto / cl.credito * 100 : 0);
+    if (cl.avaliacoes && cl.estimadas === cl.avaliacoes) {
+      $("cl-big").innerHTML = `${usd(cl.credito)} <small>crédito comprado</small>`;
+      $("cl-info").textContent = `${num(cl.avaliacoes)} avaliações feitas antes do registro de custo. O gasto aparece a partir da próxima ligação avaliada · ${cl.modelo}`;
+    } else $("cl-info").textContent = `Gasto ${usd(cl.gasto)} em ${num(cl.avaliacoes)} avaliações (≈ ${usd(cl.mediaPorLigacao)} cada)` +
+      (cl.estimadas ? ` · ${cl.estimadas} antigas estimadas pela média` : "") + ` · ${cl.modelo}`;
+
+    const lg = r.ligacoes;
+    $("lg-big").innerHTML = `${num(lg.total)} <small>· ${num(lg.minutos)} min</small>`;
+    $("lg-info").textContent = lg.creditos_el ? `${num(lg.creditos_el)} créditos ElevenLabs registrados nas ligações` : "";
+
+    $("dias").innerHTML = r.dias.length ? r.dias.map(d =>
+      `<tr><td>${d.dia.split("-").reverse().join("/")}</td><td>${num(d.ligacoes)}</td><td>${num(d.minutos)}</td><td>${d.creditos_el ? num(d.creditos_el) : "—"}</td><td>${d.custo_usd ? usd(d.custo_usd).replace("US$ ", "") : "—"}</td></tr>`
+    ).join("") : `<tr><td colspan="5">Nenhuma ligação ainda.</td></tr>`;
+
+    $("sub").innerHTML = `<span class="dot"></span>Ao vivo · atualizado às ${hora(r.atualizado)} · atualiza a cada 30 s`;
+  } catch (e) {
+    $("sub").innerHTML = `<span class="err">Erro ao carregar: ${String(e.message).replace(/</g, "&lt;")}</span>`;
+  }
+}
+carregar();
+setInterval(carregar, ATUALIZA_MS);
+</script>
+</body>
+</html>

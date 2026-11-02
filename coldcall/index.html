@@ -81,6 +81,9 @@
   .perf-top b, .eval-msg b { color:var(--nv, var(--text)); }
   .dica { background:rgba(245,158,11,.08); border:1px solid rgba(245,158,11,.45); border-radius:12px; padding:10px 12px; font-size:13px; line-height:1.5; }
   .dica .lbl { color:#F59E0B; margin-bottom:4px; }
+  .acertos { list-style:none; margin:0 0 8px; padding:0; font-size:14px; line-height:1.6; }
+  .acertos .bonus { color:#a78bfa; font-size:12px; }
+  #fb-txt { margin:0; font-size:14px; line-height:1.5; }
   .quase { margin:8px 0 0; font-size:13px; color:var(--muted); }
   @media (max-width:640px) { .par { grid-template-columns:1fr; } .seta { transform:rotate(90deg); } }
 
@@ -115,6 +118,8 @@
   .round.hang { background:var(--red); color:#fff; }
   .result { font-size:15px; color:var(--muted); margin:0 0 16px; line-height:1.6; }
   .phone .box { text-align:left; margin-bottom:16px; white-space:pre-line; }
+  .phone .eval, .phone #fb { white-space:normal; }
+  .phone .dica { margin-bottom:16px; }
   details { text-align:left; margin:0 0 16px; }
   summary { cursor:pointer; color:var(--muted); font-size:14px; }
   .transcript { max-height:300px; overflow-y:auto; margin-top:10px; font-size:14px; line-height:1.5; }
@@ -167,6 +172,7 @@
         <p id="quase" class="quase" hidden></p>
       </div>
       <div id="dica" class="dica" hidden><p class="lbl">💡 Pense nisso antes da próxima ligação</p><div id="dica-txt"></div></div>
+      <div id="fb" class="box" hidden><p class="lbl">Feedback</p><ul id="fb-acertos" class="acertos"></ul><p id="fb-txt"></p></div>
       <div class="box"><p class="lbl">Gabarito</p><div id="answer"></div></div>
       <p class="sub">Sua pontuação é calculada automaticamente e entra no ranking.</p>
       <details>
@@ -198,6 +204,7 @@ let bots = [];                 // bots ativos (aba Bots)
 let atual = null;              // { desafio, bot } da ligação em andamento
 let conversation = null;       // sessão ativa da ElevenLabs
 let ringer = null;             // controle do toque de chamada
+let ambiente = null;           // som de fundo do lead durante a ligação
 let startedAt = 0;             // quando o lead atendeu (ms)
 let timerId = null;
 let endReason = "";            // "user" | "agent" | "error"
@@ -378,6 +385,51 @@ function startRinging() {
   return { stop() { stopped = true; ctx.close(); }, get count() { return count; } };
 }
 
+// ===== Som de fundo do lead (coluna "ambiente" da aba Bots), gerado no navegador =====
+// carreta: ronco de motor a diesel, carretas passando, freio a ar e bipe de ré
+function startAmbiente(tipo) {
+  if (tipo !== "carreta") return null;
+  const ctx = new AudioContext();
+  const master = ctx.createGain(); master.gain.value = 0.5; master.connect(ctx.destination);
+  const ruido = seg => {                       // buffer de ruído branco
+    const b = ctx.createBuffer(1, ctx.sampleRate * seg, ctx.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    return b;
+  };
+  // Pátio: ruído grave contínuo que sobe e desce devagar (carretas passando)
+  const fundo = ctx.createBufferSource(); fundo.buffer = ruido(4); fundo.loop = true;
+  const fFundo = ctx.createBiquadFilter(); fFundo.type = "lowpass"; fFundo.frequency.value = 220;
+  const gFundo = ctx.createGain(); gFundo.gain.value = 0.18;
+  const lfo = ctx.createOscillator(); lfo.frequency.value = 0.07;
+  const lfoG = ctx.createGain(); lfoG.gain.value = 0.12; lfo.connect(lfoG).connect(gFundo.gain);
+  fundo.connect(fFundo).connect(gFundo).connect(master); fundo.start(); lfo.start();
+  // Motor a diesel em marcha lenta
+  const motor = ctx.createOscillator(); motor.type = "sawtooth"; motor.frequency.value = 38;
+  const fMotor = ctx.createBiquadFilter(); fMotor.type = "lowpass"; fMotor.frequency.value = 120;
+  const gMotor = ctx.createGain(); gMotor.gain.value = 0.05;
+  motor.connect(fMotor).connect(gMotor).connect(master); motor.start();
+  // Eventos de vez em quando: freio a ar (chiado) ou bipe de ré
+  const freio = () => {
+    const s = ctx.createBufferSource(); s.buffer = ruido(1);
+    const f = ctx.createBiquadFilter(); f.type = "highpass"; f.frequency.value = 2500;
+    const g = ctx.createGain(), t = ctx.currentTime;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.07, t + 0.05); g.gain.exponentialRampToValueAtTime(0.001, t + 0.9);
+    s.connect(f).connect(g).connect(master); s.start(t); s.stop(t + 1);
+  };
+  const re = () => {
+    const t = ctx.currentTime;
+    for (let i = 0; i < 4; i++) {
+      const o = ctx.createOscillator(); o.type = "square"; o.frequency.value = 1050;
+      const g = ctx.createGain(); g.gain.value = 0.012;
+      o.connect(g).connect(master); o.start(t + i * 0.9); o.stop(t + i * 0.9 + 0.45);
+    }
+  };
+  let parado = false;
+  const agenda = () => { if (!parado) timer = setTimeout(() => { (Math.random() < 0.6 ? freio : re)(); agenda(); }, 7000 + Math.random() * 12000); };
+  let timer; agenda();
+  return { stop() { parado = true; clearTimeout(timer); ctx.close(); } };
+}
+
 // ===== Fluxo da ligação =====
 async function call(id) {
   // Validações: nome e aceite de gravação
@@ -454,6 +506,7 @@ function onAnswered() {
   if (ringer) { ringer.stop(); ringer = null; }
   if (endReason || startedAt) return;   // ligação cancelada ou já atendida
   startedAt = Date.now();
+  if (atual) ambiente = startAmbiente(String(atual.bot.ambiente || "").trim().toLowerCase());
   $("btn-mute").disabled = false;
   timerId = setInterval(() => {
     $("state").innerHTML = `<span class="timer">${fmt(Date.now() - startedAt)}</span>`;
@@ -470,6 +523,7 @@ async function hangUp() {
 // Monta a tela final
 function finish() {
   if (ringer) { ringer.stop(); ringer = null; }
+  if (ambiente) { ambiente.stop(); ambiente = null; }
   clearInterval(timerId);
   conversation = null;
   $("avatar").classList.remove("speaking");
@@ -489,6 +543,7 @@ function finish() {
   $("won").hidden = true;
   $("quase").hidden = true;
   $("dica").hidden = true;
+  $("fb").hidden = true;
   if (falou && convId) {
     $("bar").classList.add("loading");
     $("bar-fill").style.width = "";
@@ -530,6 +585,12 @@ async function acompanharAvaliacao(id, token, botId) {
         $("quase").textContent = "Se a próxima tentativa não vencer o caso, você ganha uma dica.";
         $("quase").hidden = false;
       }
+      // Feedback: objetivos cumpridos com ✅ e o comentário do avaliador
+      const acertos = r.acertos || [];
+      $("fb-acertos").innerHTML = acertos.map(a => `<li>✅ ${esc(a.desc)}${a.secreto ? ' <span class="bonus">★ bônus</span>' : ""}</li>`).join("");
+      $("fb-acertos").hidden = !acertos.length;
+      $("fb-txt").textContent = r.feedback || "";
+      $("fb").hidden = !acertos.length && !r.feedback;
       const novos = bots.filter(b => aberto(b) && !antes.has(String(b.id)));
       $("won").textContent = r.sucesso ? "✓ Caso vencido!" : "Ainda não venceu este caso: confira o objetivo do desafio e tente de novo.";
       $("won").hidden = false;

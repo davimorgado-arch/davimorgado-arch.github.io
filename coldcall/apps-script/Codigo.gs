@@ -22,23 +22,28 @@ const CONFIG = {
   MAX_SEC:          3,         // colunas S1..S3 (objetivos secretos)
   VERDE:            '#c8e6c9',
   VERMELHO:         '#ffcdd2',
+  // US$ por milhão de tokens (entrada, saída), para estimar o gasto do Claude
+  PRECOS: { 'claude-opus-5-5': [4, 20], 'claude-opus-5': [5, 25], 'claude-opus-4-8': [5, 25], 'claude-sonnet-5-5': [2, 10] },
+  CREDITO_PADRAO_USD: 5,       // crédito comprado na Anthropic, se CREDITO_ANTHROPIC_USD não estiver configurado
 };
 
 const COLS_DESAFIOS = ['numero', 'ativo', 'titulo', 'descricao', 'objetivo', 'contexto'];
 // fase: 1, 2… — um caso só abre quando todos os casos das fases anteriores foram vencidos
 // requisito: id do caso que precisa ser vencido antes (o par do desafio anterior); vazio = sem par
 const COLS_BOTS     = ['id', 'ativo', 'desafio', 'nome', 'ficha', 'saudacao', 'voz_id',
-                       'roteiro', 'objetivos', 'objetivos_secretos', 'gabarito', 'fase', 'requisito'];
+                       'roteiro', 'objetivos', 'objetivos_secretos', 'gabarito', 'fase', 'requisito', 'ambiente'];
+// ambiente: som de fundo tocado na página durante a ligação (ex.: carreta); vazio = silêncio
 // Campos que a página recebe. Objetivos e pontos NÃO saem da planilha.
 const PUBLICOS_DESAFIOS = ['numero', 'titulo', 'descricao', 'objetivo', 'contexto'];
-const PUBLICOS_BOTS     = ['id', 'desafio', 'nome', 'ficha', 'saudacao', 'voz_id', 'roteiro', 'gabarito', 'fase', 'requisito'];
+const PUBLICOS_BOTS     = ['id', 'desafio', 'nome', 'ficha', 'saudacao', 'voz_id', 'roteiro', 'gabarito', 'fase', 'requisito', 'ambiente'];
 
 const COLS_O = Array.from({ length: CONFIG.MAX_OBJ }, (_, i) => 'O' + (i + 1));
 const COLS_S = Array.from({ length: CONFIG.MAX_SEC }, (_, i) => 'S' + (i + 1));
 const COLS_LIG = ['conversation_id', 'data', 'vendedor', 'desafio', 'bot', 'duracao_s',
                   'objetivos', 'secretos', 'pts_objetivos', 'pts_secretos', 'total',
                   ...COLS_O, ...COLS_S,
-                  'feedback', 'detalhe', 'audio', 'transcricao', 'exemplo', 'copiado', 'status', 'dica'];
+                  'feedback', 'detalhe', 'audio', 'transcricao', 'exemplo', 'copiado', 'status', 'dica',
+                  'tokens_in', 'tokens_out', 'custo_usd', 'creditos_el'];
 const COL = Object.fromEntries(COLS_LIG.map((c, i) => [c, i]));   // índice 0-based por nome
 
 // ─── MENU ────────────────────────────────────────────────────
@@ -89,6 +94,7 @@ function configurarChaves() {
       ['ELEVENLABS_API_KEY', 'Chave da API da ElevenLabs'],
       ['ANTHROPIC_API_KEY',  'Chave da API da Anthropic (Claude)'],
       ['AGENT_ID',           'ID do agente da ElevenLabs (agent_...)'],
+      ['CREDITO_ANTHROPIC_USD', 'Crédito total já comprado na Anthropic, em US$ (ex.: 5) — usado no painel de custos'],
     ];
     campos.forEach(([chave, rotulo]) => {
       const atual = props.getProperty(chave) ? ' (já configurado — deixe vazio para manter)' : '';
@@ -159,6 +165,10 @@ function doGet(e) {
   if (acao === 'resultado') {
     try { return json_(resultado_(p.conv)); }
     catch (err) { console.error('resultado: ' + err.message); return json_({ erro: err.message }); }
+  }
+  if (acao === 'custos') {
+    try { return json_(custos_()); }
+    catch (err) { console.error('custos: ' + err.message); return json_({ erro: err.message }); }
   }
   if (acao === 'progresso') {
     const { vencidos, ultimas, dicas, falhas } = progresso_(abrirPlanilha_(), p.vendedor);
@@ -255,6 +265,7 @@ function processarConversa_(id, bots, pastas, props, detalhe) {
   l[COL.desafio]         = dyn.desafio || (bot ? bot.desafio : '');
   l[COL.bot]             = bot ? `${botId} · ${bot.nome}` : botId;
   l[COL.duracao_s]       = meta.call_duration_secs || 0;
+  l[COL.creditos_el]     = meta.cost || '';
   l[COL.audio]           = linkAudio;
   l[COL.transcricao]     = linkTxt;
   const vazio = { linha: l, notas: notasVazias_() };
@@ -273,7 +284,7 @@ function processarConversa_(id, bots, pastas, props, detalhe) {
   }
 
   // Avaliação pelo Claude
-  const aval   = avaliar_(bot.roteiro, objetivos, secretos, transcricao, props);
+  const { aval, uso } = avaliar_(bot.roteiro, objetivos, secretos, transcricao, props);
   const resObj = indexar_(aval.objetivos);
   const resSec = indexar_(aval.secretos);
   const ok     = (res, i) => !!(res[i] && res[i].cumprido);
@@ -299,6 +310,9 @@ function processarConversa_(id, bots, pastas, props, detalhe) {
   ].join('\n');
   l[COL.feedback] = aval.feedback || '';
   l[COL.dica]     = aval.dica || '';
+  l[COL.tokens_in]  = uso.entrada;
+  l[COL.tokens_out] = uso.saida;
+  l[COL.custo_usd]  = uso.custo;
   l[COL.status]   = 'ok';
   return { linha: l, notas };
 }
@@ -315,6 +329,8 @@ function avaliar_(roteiro, objetivos, secretos, transcricao, props) {
     'A transcrição vem de reconhecimento de voz e pode ter erros de grafia: não penalize isso. ' +
     'Em "evidencia", cite em poucas palavras o trecho que comprova (ou por que não foi cumprido). ' +
     'Em "feedback", escreva 2 a 3 frases diretas ao vendedor: o que fez bem e o que melhorar. ' +
+    'O feedback é mostrado ao vendedor: não revele nomes, ramais, números nem informações que ele ainda não descobriu, ' +
+    'nem mencione objetivos secretos que ele não cumpriu. ' +
     'Em "dica", escreva UMA pergunta curta (até 25 palavras), em segunda pessoa, que faça o vendedor refletir ' +
     'sobre o objetivo marcado [CHAVE] mais importante que ele não cumpriu (se cumpriu todos, sobre o que mais limitou a ligação). ' +
     'A dica faz pensar, não entrega: não revele nomes, ramais, números, horários nem nada que o personagem esconde, ' +
@@ -374,7 +390,13 @@ function avaliar_(roteiro, objetivos, secretos, transcricao, props) {
   if (msg.stop_reason === 'max_tokens') throw new Error('Resposta do Claude cortada (max_tokens)');
   const texto = (msg.content || []).find(b => b.type === 'text');
   if (!texto) throw new Error('Resposta do Claude sem texto');
-  return JSON.parse(texto.text);
+  // Gasto estimado: tokens × preço do modelo que respondeu (pode ser outro, se houve fallback)
+  const u = msg.usage || {};
+  const entrada = (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.cache_read_input_tokens || 0);
+  const saida   = u.output_tokens || 0;
+  const preco   = CONFIG.PRECOS[msg.model] || CONFIG.PRECOS[CONFIG.MODELO];
+  const custo   = Math.round((entrada * preco[0] + saida * preco[1]) / 1e6 * 1e5) / 1e5;
+  return { aval: JSON.parse(texto.text), uso: { entrada, saida, custo } };
 }
 
 // ─── RESULTADO E DESBLOQUEIO (página do simulador) ───────────
@@ -413,18 +435,82 @@ function resultado_(conv) {
   const id   = botIdDaLinha_(r[COL.bot]);
   const bot  = lerTabela_(ss, CONFIG.ABA_BOTS).find(b => String(b.id) === id);
   const prog = progresso_(ss, r[COL.vendedor]);
+  // Objetivos cumpridos nesta ligação (só os cumpridos: os que faltam continuam escondidos)
+  const acertos = [];
+  if (bot) {
+    parseObjetivos_(bot.objetivos).forEach((o, i) => { if (i < COLS_O.length && r[COL[COLS_O[i]]] === '✔') acertos.push({ desc: o.desc, secreto: false }); });
+    parseObjetivos_(bot.objetivos_secretos).forEach((o, i) => { if (i < COLS_S.length && r[COL[COLS_S[i]]] === '✔') acertos.push({ desc: o.desc, secreto: true }); });
+  }
   return {
     pronto:   true,
     avaliada: true,
     pct:      pctLinha_(r, bot),
     sucesso:  !!bot && venceu_(r, bot),
     vencidos: prog.vencidos,
+    feedback: String(r[COL.feedback] || ''),
+    acertos,
     // Dica só quando esta ligação completou mais 2 tentativas sem vencer o caso
     dica:     prog.dicaConv[id] === conv ? prog.dicas[id] : '',
     // 1 = a próxima tentativa sem sucesso traz uma dica
     faltaParaDica: prog.falhas[id] ? 2 - (prog.falhas[id] % 2 || 2) : 0,
   };
 }
+
+// ─── PAINEL DE CUSTOS (custos.html) ──────────────────────────
+
+// Gasto da ElevenLabs (assinatura) e do Claude (estimado pelos tokens de cada avaliação)
+function custos_() {
+  const cache = CacheService.getScriptCache();
+  const salvo = cache.get('custos');
+  if (salvo) return JSON.parse(salvo);
+
+  const props = PropertiesService.getScriptProperties().getProperties();
+  const linhas = linhasLigacoes_(abrirPlanilha_());
+  const avaliadas = linhas.filter(r => r[COL.status] === 'ok' && COLS_O.some(c => r[COL[c]]));
+  const comCusto  = avaliadas.filter(r => r[COL.custo_usd] !== '' && r[COL.custo_usd] != null);
+  const soma = (arr, c) => arr.reduce((s, r) => s + (Number(r[COL[c]]) || 0), 0);
+  const gastoReal = soma(comCusto, 'custo_usd');
+  const media     = comCusto.length ? gastoReal / comCusto.length : 0;
+  const semCusto  = avaliadas.length - comCusto.length;            // avaliações de antes do registro de custo
+  const gasto     = gastoReal + semCusto * media;
+  const credito   = Number(props.CREDITO_ANTHROPIC_USD) || CONFIG.CREDITO_PADRAO_USD;
+
+  // Por dia (fuso de São Paulo)
+  const dias = {};
+  linhas.forEach(r => {
+    if (!(r[COL.data] instanceof Date)) return;
+    const k = Utilities.formatDate(r[COL.data], CONFIG.FUSO, 'yyyy-MM-dd');
+    const d = dias[k] = dias[k] || { dia: k, ligacoes: 0, minutos: 0, creditos_el: 0, custo_usd: 0 };
+    d.ligacoes++;
+    d.minutos     += (Number(r[COL.duracao_s]) || 0) / 60;
+    d.creditos_el += Number(r[COL.creditos_el]) || 0;
+    d.custo_usd   += Number(r[COL.custo_usd]) || 0;
+  });
+
+  let eleven = null;
+  try {
+    const sub = elevenJSON_('/v1/user/subscription', props);
+    eleven = { usados: sub.character_count, limite: sub.character_limit, plano: sub.tier,
+               renova: sub.next_character_count_reset_unix ? sub.next_character_count_reset_unix * 1000 : null };
+  } catch (e) {
+    eleven = { erro: e.message };
+  }
+
+  const out = {
+    atualizado: Date.now(),
+    eleven,
+    claude: { gasto: round_(gasto), credito, saldo: round_(credito - gasto), avaliacoes: avaliadas.length,
+              estimadas: semCusto, mediaPorLigacao: round_(media), modelo: CONFIG.MODELO },
+    ligacoes: { total: linhas.length, minutos: Math.round(soma(linhas, 'duracao_s') / 60),
+                creditos_el: soma(linhas, 'creditos_el') },
+    dias: Object.values(dias).sort((a, b) => b.dia.localeCompare(a.dia)).slice(0, 14)
+      .map(d => ({ ...d, minutos: Math.round(d.minutos), custo_usd: round_(d.custo_usd) })),
+  };
+  cache.put('custos', JSON.stringify(out), 30);
+  return out;
+}
+
+const round_ = n => Math.round(n * 100) / 100;
 
 // Progresso do vendedor (pelo nome digitado):
 //   vencidos → ids dos casos já vencidos
@@ -622,7 +708,7 @@ function botsExemplo_() {
       'Disse nome, empresa e motivo da ligação nos primeiros 20 segundos | 10\nDescobriu o nome do responsável pela energia | 20 | chave\nDescobriu o cargo ou área do responsável | 10\nConseguiu um contato direto (ramal ou e-mail) | 20 | chave',
       'Descobriu o melhor horário para encontrar o responsável (à tarde) | 10\nConseguiu o contato sem fazer nenhum pitch de produto para a recepcionista | 10',
       'Responsável: Ricardo Bassani, gerente industrial. Ramal 230 · ricardo.bassani@metalserrana.com.br. Melhor horário: à tarde.',
-      1, '',
+      1, '', '',
     ],
     [
       'ricardo', true, 2, 'Ricardo Bassani · Metalúrgica Serrana',
@@ -635,7 +721,7 @@ function botsExemplo_() {
       'Abertura: se apresentou, disse a empresa e o motivo, e pediu poucos minutos | 10\nFez perguntas antes de apresentar o serviço | 10\nDescobriu que a empresa já está no mercado livre | 10\nDescobriu o vencimento do contrato | 15\nDescobriu quem faz a gestão hoje | 15\nSaiu com reunião marcada com dia e horário | 25 | chave',
       'Descobriu a cobrança inesperada de cerca de R$ 40 mil na CCEE | 20\nNão criticou a comercializadora atual | 10',
       'Mercado livre desde 2022, contrato até dez/2027, gestão feita pela própria comercializadora. Dor escondida: cobrança inesperada de ~R$ 40 mil na CCEE. Próximo passo ideal: reunião para diagnóstico da gestão.',
-      1, 'juliana',
+      1, 'juliana', '',
     ],
   ];
 }
