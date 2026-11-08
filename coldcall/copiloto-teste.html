@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Copiloto · Teste de áudio</title>
+<style>
+  :root {
+    --bg:#111418; --card:#1B2027; --text:#F2F4F7; --muted:#9AA4B2; --line:#2A313B;
+    --accent:#60A5FA; --green:#22C55E; --amber:#F59E0B; --red:#EF4444;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; min-height:100vh; background:var(--bg); color:var(--text); padding:32px 16px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  .wrap { max-width:820px; margin:0 auto; }
+  h1 { font-size:26px; margin:0 0 6px; }
+  .sub { color:var(--muted); font-size:15px; margin:0 0 20px; line-height:1.5; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px; margin-bottom:16px; }
+  .lbl { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.05em; margin:0 0 8px; }
+
+  .modos { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:12px; }
+  .modo { display:block; border:1px solid var(--line); border-radius:12px; padding:14px; cursor:pointer; }
+  .modo:has(input:checked) { border-color:var(--accent); background:rgba(96,165,250,.08); }
+  .modo input { margin:0 8px 0 0; }
+  .modo b { font-size:15px; }
+  .modo small { display:block; color:var(--muted); font-size:13px; line-height:1.45; margin-top:6px; }
+  .ajuda { color:var(--muted); font-size:13px; line-height:1.5; margin:14px 0 0; }
+  .ajuda b { color:var(--text); font-weight:600; }
+
+  .linha { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-top:14px; }
+  input[type=password] {
+    flex:1 1 200px; padding:12px; border-radius:10px; border:1px solid var(--line);
+    background:var(--bg); color:var(--text); font-size:15px;
+  }
+  .check { display:flex; gap:8px; align-items:center; font-size:13px; color:var(--muted); cursor:pointer; }
+  .btn { border:0; border-radius:999px; font-size:15px; font-weight:600; cursor:pointer; padding:12px 24px; color:#fff; }
+  .btn:disabled { opacity:.4; cursor:not-allowed; }
+  .verde { background:var(--green); }
+  .vermelho { background:var(--red); }
+  .contorno { background:transparent; border:1px solid var(--line); color:var(--text); }
+
+  #status { font-size:14px; color:var(--muted); margin:14px 0 0; }
+  #status.erro { color:#FCA5A5; }
+  .medidor { display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted); margin-top:8px; }
+  .medidor span { width:64px; flex:none; }
+  .barra { flex:1; height:8px; background:var(--bg); border-radius:99px; overflow:hidden; }
+  .barra div { height:100%; width:0; background:var(--green); transition:width .1s linear; }
+
+  #transcricao { min-height:180px; }
+  .fala { display:flex; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); font-size:15px; line-height:1.45; }
+  .fala:last-child { border-bottom:0; }
+  .tempo { color:var(--muted); font-size:12px; font-variant-numeric:tabular-nums; padding-top:3px; flex:none; }
+  .chip { flex:none; width:58px; text-align:center; font-size:11px; font-weight:700; border-radius:999px; padding:3px 0; height:21px; border:1px solid var(--line); color:var(--muted); }
+  .chip.front { color:var(--accent); border-color:var(--accent); }
+  .chip.lead { color:var(--green); border-color:var(--green); }
+  .parcial { color:var(--muted); font-style:italic; font-size:14px; line-height:1.45; padding-top:8px; }
+  .vazio { color:var(--muted); font-size:14px; }
+  #obs { color:var(--muted); font-size:14px; line-height:1.5; margin:12px 0 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Copiloto · Teste de áudio</h1>
+  <p class="sub">Mostra a transcrição da ligação ao vivo. Use para avaliar a qualidade antes de construir as dicas. Nada fica salvo: ao fechar a página, a transcrição se perde.</p>
+
+  <div class="card">
+    <p class="lbl">Como é a ligação</p>
+    <div class="modos">
+      <label class="modo">
+        <input type="radio" name="modo" value="vivavoz" checked><b>Celular no viva-voz</b>
+        <small>O PC ouve tudo pelo microfone. A separação de quem falou é feita depois, pelo Claude.</small>
+      </label>
+      <label class="modo">
+        <input type="radio" name="modo" value="computador"><b>Ligação pelo computador</b>
+        <small>Microfone = front. Áudio do computador = lead. A separação é exata. Use fone de ouvido.</small>
+      </label>
+    </div>
+    <p class="ajuda" id="ajuda"></p>
+    <div class="linha">
+      <input type="password" id="codigo" placeholder="Código de acesso" autocomplete="off">
+      <label class="check" id="caixaRuido"><input type="checkbox" id="ruido"> Supressão de ruído do navegador</label>
+    </div>
+    <div class="linha">
+      <button class="btn verde" id="iniciar">Começar a ouvir</button>
+      <button class="btn vermelho" id="parar" disabled>Parar</button>
+    </div>
+    <p id="status">Avise o lead de que a ligação está sendo transcrita.</p>
+    <div id="medidores"></div>
+  </div>
+
+  <div class="card">
+    <p class="lbl">Transcrição</p>
+    <div id="transcricao"><p class="vazio">As falas aparecem aqui.</p></div>
+    <div class="parcial" id="parcial"></div>
+    <div class="linha">
+      <button class="btn contorno" id="atribuir" disabled>Claude: quem falou?</button>
+      <button class="btn contorno" id="copiar" disabled>Copiar transcrição</button>
+    </div>
+    <p id="obs"></p>
+  </div>
+</div>
+
+<script>
+const qs      = new URLSearchParams(location.search);
+const API_URL = qs.get("api") || "https://script.google.com/macros/s/AKfycbwXoiuekCrxQAZncSYzJbp2c8p8C-Ik3JDUL-gXJ4kDrZW3xqZwqAgCqnZhoVBAVEQ/exec";
+const WS_URL  = "wss://api.elevenlabs.io/v1/speech-to-text/realtime";
+const TAXA    = 16000;   // Hz: formato pcm_16000 da ElevenLabs
+const CHUNK   = 1600;    // amostras por envio (100 ms)
+const CHAVE_CODIGO = "copiloto_codigo";
+
+const $ = id => document.getElementById(id);
+const ehMac = /Mac/.test(navigator.platform);
+
+// Rótulo mostrado para cada resultado do Claude ou fonte de áudio
+const ROTULOS = { front: "FRONT", lead: "LEAD", incerto: "?" };
+
+let fontes = [];       // { id, rotulo, stream, ws, no, fila, pronto, parcial, barra }
+let falas  = [];       // { t, quem, texto }
+let ctx = null, inicio = 0, ativo = false, telaStream = null;
+
+function guardar(chave, valor) { try { localStorage.setItem(chave, valor); } catch (e) {} }
+function ler(chave) { try { return localStorage.getItem(chave) || ""; } catch (e) { return ""; } }
+
+function status(texto, erro) {
+  $("status").textContent = texto;
+  $("status").classList.toggle("erro", !!erro);
+}
+
+const modo = () => document.querySelector("input[name=modo]:checked").value;
+
+function atualizarAjuda() {
+  const vv = modo() === "vivavoz";
+  $("caixaRuido").style.display = vv ? "" : "none";
+  if (vv) {
+    $("ajuda").innerHTML = "Coloque o celular no viva-voz, perto do microfone do PC. Faça um teste com a supressão de ruído desligada e outro ligada, e compare.";
+  } else if (ehMac) {
+    $("ajuda").innerHTML = "No pop-up do navegador, escolha a <b>aba</b> da ligação e deixe <b>compartilhar áudio da aba</b> ligado. Apps instalados (WhatsApp Desktop, softphone) só funcionam com <b>Tela inteira</b> com áudio do sistema, e isso depende do Chrome 141+ no macOS 14.2+. Se a barra do Lead ficar parada, é porque o áudio não chegou.";
+  } else {
+    $("ajuda").innerHTML = "No pop-up do navegador, escolha <b>Tela inteira</b> e ligue <b>Compartilhar áudio do sistema</b>. Vale para qualquer app de ligação.";
+  }
+}
+document.querySelectorAll("input[name=modo]").forEach(r => r.addEventListener("change", atualizarAjuda));
+
+// ─── CAPTURA ─────────────────────────────────────────────────
+
+// Roda fora da thread principal: junta as amostras e entrega blocos PCM de 16 bits
+const WORKLET = `
+class Pcm extends AudioWorkletProcessor {
+  constructor() { super(); this.b = new Int16Array(${CHUNK}); this.n = 0; }
+  process(entradas) {
+    const c = entradas[0][0];
+    if (!c) return true;
+    for (let i = 0; i < c.length; i++) {
+      const s = Math.max(-1, Math.min(1, c[i]));
+      this.b[this.n++] = s * 32767;
+      if (this.n === ${CHUNK}) { this.port.postMessage(this.b.slice()); this.n = 0; }
+    }
+    return true;
+  }
+}
+registerProcessor("pcm", Pcm);`;
+
+async function capturar() {
+  if (modo() === "vivavoz") {
+    const filtro = $("ruido").checked;
+    // A voz do lead sai comprimida do alto-falante; o cancelamento de eco e o ganho
+    // automático do navegador tendem a cortá-la, então ficam desligados.
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation:false, autoGainControl:false, noiseSuppression:filtro },
+    });
+    return [{ id:"mic", rotulo:"Microfone", quem:"incerto", stream }];
+  }
+
+  // A tela vem primeiro: o navegador só abre esse pop-up logo após o clique
+  telaStream = await navigator.mediaDevices.getDisplayMedia({
+    video: { frameRate:1 },
+    audio: { echoCancellation:false, autoGainControl:false, noiseSuppression:false, suppressLocalAudioPlayback:false },
+    systemAudio: "include",
+  });
+  const trilhas = telaStream.getAudioTracks();
+  if (!trilhas.length) {
+    telaStream.getTracks().forEach(t => t.stop());
+    telaStream = null;
+    throw new Error("O compartilhamento veio sem áudio. Tente de novo e ligue a opção de compartilhar áudio no pop-up.");
+  }
+  trilhas[0].addEventListener("ended", () => parar("Compartilhamento encerrado."));
+  const mic = await navigator.mediaDevices.getUserMedia({
+    audio: { echoCancellation:true, autoGainControl:true, noiseSuppression:true },
+  });
+  return [
+    { id:"mic", rotulo:"Front", quem:"front", stream:mic },
+    { id:"sys", rotulo:"Lead",  quem:"lead",  stream:new MediaStream(trilhas) },
+  ];
+}
+
+async function pedirTokens(n, codigo) {
+  const url = `${API_URL}?acao=token_stt&n=${n}&codigo=${encodeURIComponent(codigo)}`;
+  const r = await fetch(url);
+  const d = await r.json();
+  if (d.erro) throw new Error(d.erro);
+  return d.tokens;
+}
+
+function conectar(fonte, token) {
+  const p = new URLSearchParams({
+    model_id: "scribe_v2_realtime", token, audio_format: "pcm_16000", language_code: "pt",
+    commit_strategy: "vad", vad_silence_threshold_secs: "0.8",
+  });
+  const ws = new WebSocket(`${WS_URL}?${p}`);
+  fonte.ws = ws;
+  fonte.fila = [];
+  fonte.pronto = false;
+
+  ws.onmessage = ev => {
+    const m = JSON.parse(ev.data);
+    if (m.message_type === "session_started") {
+      fonte.pronto = true;
+      fonte.fila.splice(0).forEach(pcm => enviar(fonte, pcm));
+      if (fontes.every(f => f.pronto)) status("Ouvindo. Pode falar.");
+    } else if (m.message_type === "partial_transcript") {
+      fonte.parcial = m.text || "";
+      mostrarParcial();
+    } else if (m.message_type === "committed_transcript") {
+      fonte.parcial = "";
+      mostrarParcial();
+      if (m.text && m.text.trim()) adicionarFala(fonte.quem, m.text.trim());
+    } else if (m.error) {
+      parar(`Erro na transcrição (${m.message_type}): ${m.error}`, true);
+    }
+  };
+  ws.onerror = () => { if (ativo) parar("Falha na conexão com a transcrição.", true); };
+  ws.onclose = ev => { if (ativo) parar(`A conexão de transcrição caiu (código ${ev.code}).`, true); };
+}
+
+function enviar(fonte, pcm) {
+  const bytes = new Uint8Array(pcm.buffer);
+  let bin = "";
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  fonte.ws.send(JSON.stringify({
+    message_type: "input_audio_chunk", audio_base_64: btoa(bin), commit: false, sample_rate: TAXA,
+  }));
+}
+
+function criarMedidor(fonte) {
+  const linha = document.createElement("div");
+  linha.className = "medidor";
+  const nome = document.createElement("span");
+  nome.textContent = fonte.rotulo;
+  const barra = document.createElement("div");
+  barra.className = "barra";
+  const nivel = document.createElement("div");
+  barra.appendChild(nivel);
+  linha.append(nome, barra);
+  $("medidores").appendChild(linha);
+  fonte.barra = nivel;
+}
+
+function ligarAudio(fonte, destino) {
+  const origem = ctx.createMediaStreamSource(fonte.stream);
+  // Mono explícito: o áudio do sistema pode vir em estéreo
+  const no = new AudioWorkletNode(ctx, "pcm", { channelCount:1, channelCountMode:"explicit", channelInterpretation:"speakers" });
+  no.port.onmessage = ev => {
+    const pcm = ev.data;
+    let soma = 0;
+    for (let i = 0; i < pcm.length; i += 8) soma += pcm[i] * pcm[i];
+    const rms = Math.sqrt(soma / (pcm.length / 8)) / 32767;
+    fonte.barra.style.width = Math.min(100, rms * 400) + "%";
+    if (!ativo) return;
+    if (fonte.pronto && fonte.ws.readyState === WebSocket.OPEN) enviar(fonte, pcm);
+    else fonte.fila.push(pcm);
+  };
+  origem.connect(no);
+  no.connect(destino);   // sem chegar ao destino, o navegador pode não processar o nó
+  fonte.no = no;
+}
+
+async function iniciar() {
+  const codigo = $("codigo").value.trim();
+  if (!codigo) { status("Informe o código de acesso.", true); return; }
+  guardar(CHAVE_CODIGO, codigo);
+
+  $("iniciar").disabled = true;
+  try {
+    status("Pedindo acesso ao áudio…");
+    fontes = await capturar();
+    status("Abrindo a transcrição…");
+    const tokens = await pedirTokens(fontes.length, codigo);
+
+    ctx = new AudioContext({ sampleRate:TAXA });
+    await ctx.resume();
+    const url = URL.createObjectURL(new Blob([WORKLET], { type:"text/javascript" }));
+    await ctx.audioWorklet.addModule(url);
+    URL.revokeObjectURL(url);
+
+    // Saída muda: o áudio é só analisado, nunca tocado de volta
+    const mudo = ctx.createGain();
+    mudo.gain.value = 0;
+    mudo.connect(ctx.destination);
+
+    falas = [];
+    renderizar();
+    $("obs").textContent = "";
+    $("medidores").textContent = "";
+    inicio = Date.now();
+    ativo = true;
+    fontes.forEach((f, i) => { criarMedidor(f); conectar(f, tokens[i]); ligarAudio(f, mudo); });
+    $("parar").disabled = false;
+  } catch (e) {
+    ativo = false;
+    soltarRecursos();
+    $("iniciar").disabled = false;
+    const negado = e && e.name === "NotAllowedError";
+    status(negado ? "Permissão de áudio negada ou pop-up cancelado." : e.message, true);
+  }
+}
+
+function soltarRecursos() {
+  fontes.forEach(f => {
+    if (f.no) f.no.disconnect();
+    if (f.ws && f.ws.readyState <= WebSocket.OPEN) f.ws.close();
+    if (f.stream) f.stream.getTracks().forEach(t => t.stop());
+    if (f.barra) f.barra.style.width = "0";
+    f.parcial = "";
+  });
+  if (telaStream) { telaStream.getTracks().forEach(t => t.stop()); telaStream = null; }
+  if (ctx) { ctx.close(); ctx = null; }
+  mostrarParcial();
+}
+
+function parar(msg, erro) {
+  if (!ativo) return;
+  ativo = false;
+  soltarRecursos();
+  $("iniciar").disabled = false;
+  $("parar").disabled = true;
+  status(msg || "Encerrado.", erro);
+  atualizarBotoes();
+}
+
+// ─── TRANSCRIÇÃO ─────────────────────────────────────────────
+
+const mmss = ms => {
+  const s = Math.floor(ms / 1000);
+  return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+};
+
+function adicionarFala(quem, texto) {
+  falas.push({ t: Date.now() - inicio, quem, texto });
+  renderizar();
+}
+
+function renderizar() {
+  const caixa = $("transcricao");
+  caixa.textContent = "";
+  if (!falas.length) {
+    const p = document.createElement("p");
+    p.className = "vazio";
+    p.textContent = "As falas aparecem aqui.";
+    caixa.appendChild(p);
+  }
+  falas.forEach(f => {
+    const linha = document.createElement("div");
+    linha.className = "fala";
+    const tempo = document.createElement("span");
+    tempo.className = "tempo";
+    tempo.textContent = mmss(f.t);
+    const chip = document.createElement("span");
+    chip.className = "chip " + f.quem;
+    chip.textContent = ROTULOS[f.quem];
+    const texto = document.createElement("span");
+    texto.textContent = f.texto;
+    linha.append(tempo, chip, texto);
+    caixa.appendChild(linha);
+  });
+  atualizarBotoes();
+}
+
+function mostrarParcial() {
+  $("parcial").textContent = fontes.map(f => f.parcial).filter(Boolean).join(" · ");
+}
+
+function atualizarBotoes() {
+  const temFalas = falas.length > 0;
+  $("copiar").disabled = !temFalas;
+  $("atribuir").disabled = ativo || !falas.some(f => f.quem === "incerto");
+}
+
+async function atribuir() {
+  $("atribuir").disabled = true;
+  $("obs").textContent = "Claude analisando…";
+  try {
+    // text/plain evita a pré-verificação de CORS, que o Apps Script não responde
+    const r = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ acao:"atribuir_falas", codigo:$("codigo").value.trim(), falas:falas.map(f => f.texto) }),
+    });
+    const d = await r.json();
+    if (d.erro) throw new Error(d.erro);
+    d.falas.forEach(item => { if (falas[item.i]) falas[item.i].quem = item.quem; });
+    renderizar();
+    $("obs").textContent = d.observacao || "";
+  } catch (e) {
+    $("obs").textContent = "Não foi possível analisar: " + e.message;
+    atualizarBotoes();
+  }
+}
+
+async function copiar() {
+  const texto = falas.map(f => `[${mmss(f.t)}] ${ROTULOS[f.quem]}: ${f.texto}`).join("\n");
+  try {
+    await navigator.clipboard.writeText(texto);
+    $("obs").textContent = "Transcrição copiada.";
+  } catch (e) {
+    $("obs").textContent = "O navegador bloqueou a cópia.";
+  }
+}
+
+$("iniciar").addEventListener("click", iniciar);
+$("parar").addEventListener("click", () => parar());
+$("atribuir").addEventListener("click", atribuir);
+$("copiar").addEventListener("click", copiar);
+$("codigo").value = qs.get("codigo") || ler(CHAVE_CODIGO);
+atualizarAjuda();
+</script>
+</body>
+</html>

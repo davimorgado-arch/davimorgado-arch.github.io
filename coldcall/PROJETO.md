@@ -396,3 +396,16 @@ Com o **Claude in Chrome** disponível, as tarefas de navegador são:
 - rodar os menus;
 - implantar o app da web;
 - montar o elenco de vozes na ElevenLabs.
+
+## 14. Copiloto de ligações reais: teste de áudio (08/11/2026)
+
+Ideia: assistente que ouve a ligação real e orienta o front por texto. Esta etapa só valida o áudio; ainda não há dicas.
+
+- **Página:** `coldcall/copiloto-teste.html`, com dois modos:
+  - **Celular no viva-voz:** uma conexão de transcrição, só microfone. O Scribe em tempo real não documenta separação de vozes, então o botão "Claude: quem falou?" classifica as falas depois (`doPost`, `atribuir_falas`).
+  - **Ligação pelo computador:** duas conexões, microfone = front e áudio do sistema (`getDisplayMedia`) = lead. A separação é exata.
+- **Transcrição:** ElevenLabs `scribe_v2_realtime` por WebSocket, com token de uso único gerado no Apps Script (`?acao=token_stt`).
+- **Acesso:** o app da web é público, então token e análise exigem `COPILOTO_CODIGO` (menu "Configurar chaves e agente").
+- **Áudio do sistema:** no Windows funciona com Tela inteira. No Mac, aba do Chrome; Tela inteira com áudio depende de Chrome 141+ e macOS 14.2+ (não confirmado em documentação oficial).
+- **Nada é salvo:** a transcrição fica só na página. A ElevenLabs mantém o registro padrão da sessão (`enable_logging`; desligar exige plano enterprise).
+- **Latência:** o Apps Script serve para o teste, mas o copiloto com dicas ao vivo vai precisar de um servidor mais rápido (ex.: Cloudflare Worker).
