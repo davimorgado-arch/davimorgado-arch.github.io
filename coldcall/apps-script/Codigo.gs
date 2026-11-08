@@ -16,7 +16,7 @@ const CONFIG = {
   FUSO:             'America/Sao_Paulo',
   NOME_PASTA:       'Simulador Cold Call',
   MODELO:           'claude-opus-5-5',
-  MODELO_AO_VIVO:   'claude-haiku-5-5',   // separação de falas do copiloto durante a ligação
+  MODELO_AO_VIVO:   'claude-opus-5-5',    // separação de falas ao vivo; o Haiku 5.5 foi testado (08/11/2026): mesma demora e mais erros
   ESFORCO:          'low',     // avaliação é quase classificação; "low" responde rápido
   MAX_POR_EXECUCAO: 5,         // ligações processadas por minuto (limite de 6 min do GAS)
   CACHE_SEG:        60,        // cache das respostas do app da web
