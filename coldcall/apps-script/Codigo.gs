@@ -106,7 +106,6 @@ function configurarChaves() {
       ['ANTHROPIC_API_KEY',  'Chave da API da Anthropic (Claude)'],
       ['AGENT_ID',           'ID do agente da ElevenLabs (agent_...)'],
       ['CREDITO_ANTHROPIC_USD', 'Crédito total já comprado na Anthropic, em US$ (ex.: 5) — usado no painel de custos'],
-      ['COPILOTO_CODIGO', 'Código de acesso da página de teste do copiloto (escolha uma senha; quem tem o código gasta créditos)'],
     ];
     campos.forEach(([chave, rotulo]) => {
       const atual = props.getProperty(chave) ? ' (já configurado — deixe vazio para manter)' : '';
@@ -169,13 +168,13 @@ function reprocessarErros() {
 //   ?acao=ranking                → ranking por vendedor (página do pódio)
 //   ?acao=resultado&conv=ID      → % de informação extraída numa ligação (avalia na hora se preciso)
 //   ?acao=progresso&vendedor=X   → casos vencidos, % da última ligação e dica de cada caso
-//   ?acao=token_stt&n=1|2&codigo → tokens de uso único da transcrição em tempo real (copiloto)
+//   ?acao=token_stt&n=1|2       → tokens de uso único da transcrição em tempo real (copiloto)
 //   sem parâmetro                → desafios e bots ativos, só campos públicos (página do simulador)
 function doGet(e) {
   const p    = (e && e.parameter) || {};
   const acao = p.acao || 'bots';
   if (acao === 'token_stt') {
-    try { return json_(tokensTranscricao_(p.codigo, p.n)); }
+    try { return json_(tokensTranscricao_(p.n)); }
     catch (err) { console.error('token_stt: ' + err.message); return json_({ erro: err.message }); }
   }
   // Respostas por ligação ou por vendedor: sem cache
@@ -210,7 +209,7 @@ function doGet(e) {
 function doPost(e) {
   try {
     const corpo = JSON.parse(e.postData.contents);
-    if (corpo.acao === 'atribuir_falas') return json_(atribuirFalas_(corpo.codigo, corpo.falas));
+    if (corpo.acao === 'atribuir_falas') return json_(atribuirFalas_(corpo.falas));
     return json_({ erro: 'ação desconhecida' });
   } catch (err) {
     console.error('doPost: ' + err.message);
@@ -220,16 +219,9 @@ function doPost(e) {
 
 // ─── COPILOTO (teste de áudio: coldcall/copiloto-teste.html) ─
 
-// O app da web é público e estes dois serviços gastam créditos: exige o código
-function exigirCodigoCopiloto_(codigo, props) {
-  if (!props.COPILOTO_CODIGO) throw new Error('COPILOTO_CODIGO não configurado (menu "Configurar chaves e agente")');
-  if (codigo !== props.COPILOTO_CODIGO) throw new Error('Código de acesso inválido');
-}
-
 // Um token por conexão: viva-voz usa 1, ligação pelo computador usa 2
-function tokensTranscricao_(codigo, n) {
+function tokensTranscricao_(n) {
   const props = PropertiesService.getScriptProperties().getProperties();
-  exigirCodigoCopiloto_(codigo, props);
   const qtd = Number(n) === 2 ? 2 : 1;
   const tokens = [];
   for (let i = 0; i < qtd; i++) {
@@ -243,9 +235,8 @@ function tokensTranscricao_(codigo, n) {
 }
 
 // Viva-voz: um microfone só, sem separação de vozes. O Claude deduz pelo conteúdo.
-function atribuirFalas_(codigo, falas) {
+function atribuirFalas_(falas) {
   const props = PropertiesService.getScriptProperties().getProperties();
-  exigirCodigoCopiloto_(codigo, props);
   if (!Array.isArray(falas) || !falas.length) throw new Error('Sem falas para analisar');
   if (falas.length > 600) throw new Error('Transcrição longa demais para o teste');
 
