@@ -16,6 +16,7 @@ const CONFIG = {
   FUSO:             'America/Sao_Paulo',
   NOME_PASTA:       'Simulador Cold Call',
   MODELO:           'claude-opus-5-5',
+  MODELO_AO_VIVO:   'claude-haiku-5-5',   // separação de falas do copiloto durante a ligação
   ESFORCO:          'low',     // avaliação é quase classificação; "low" responde rápido
   MAX_POR_EXECUCAO: 5,         // ligações processadas por minuto (limite de 6 min do GAS)
   CACHE_SEG:        60,        // cache das respostas do app da web
@@ -24,7 +25,7 @@ const CONFIG = {
   VERDE:            '#c8e6c9',
   VERMELHO:         '#ffcdd2',
   // US$ por milhão de tokens (entrada, saída), para estimar o gasto do Claude
-  PRECOS: { 'claude-opus-5-5': [4, 20], 'claude-opus-5': [5, 25], 'claude-opus-4-8': [5, 25], 'claude-sonnet-5-5': [2, 10] },
+  PRECOS: { 'claude-opus-5-5': [4, 20], 'claude-opus-5': [5, 25], 'claude-opus-4-8': [5, 25], 'claude-sonnet-5-5': [2, 10], 'claude-haiku-5-5': [0.1, 0.5] },
   CREDITO_PADRAO_USD: 5,       // crédito comprado na Anthropic, se CREDITO_ANTHROPIC_USD não estiver configurado
 };
 
@@ -288,7 +289,8 @@ function atribuirFalas_(falas, contexto) {
     required: ['falas', 'observacao'],
     additionalProperties: false,
   };
-  const dados = chamarClaudeJson_(system, user, schema, props).dados;
+  const modelo = Array.isArray(contexto) ? CONFIG.MODELO_AO_VIVO : CONFIG.MODELO;
+  const dados = chamarClaudeJson_(system, user, schema, props, modelo).dados;
   const porBloco = Object.fromEntries(dados.falas.map(f => [f.i, f.turnos]));
   return {
     falas: falas.map((f, i) => ({ i, turnos: conferirTurnos_(String(f), porBloco[i]) })),
@@ -492,7 +494,8 @@ function avaliar_(roteiro, objetivos, secretos, transcricao, props) {
 }
 
 // Chamada ao Claude com saída em JSON no formato do schema
-function chamarClaudeJson_(system, user, schema, props) {
+function chamarClaudeJson_(system, user, schema, props, modelo) {
+  const usado = modelo || CONFIG.MODELO;
   const resp = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
     method: 'post',
     contentType: 'application/json',
@@ -503,9 +506,9 @@ function chamarClaudeJson_(system, user, schema, props) {
       'anthropic-beta':    'server-side-fallback-2026-07-01',   // refaz em outro modelo se houver recusa
     },
     payload: JSON.stringify({
-      model:         CONFIG.MODELO,
+      model:         usado,
       max_tokens:    16000,
-      fallbacks:     'default',
+      ...(usado === CONFIG.MODELO ? { fallbacks: 'default' } : {}),   // o Haiku não tem fallback no servidor
       output_config: { effort: CONFIG.ESFORCO, format: { type: 'json_schema', schema } },
       system,
       messages: [{ role: 'user', content: user }],
@@ -522,7 +525,7 @@ function chamarClaudeJson_(system, user, schema, props) {
   const u = msg.usage || {};
   const entrada = (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.cache_read_input_tokens || 0);
   const saida   = u.output_tokens || 0;
-  const preco   = CONFIG.PRECOS[msg.model] || CONFIG.PRECOS[CONFIG.MODELO];
+  const preco   = CONFIG.PRECOS[msg.model] || CONFIG.PRECOS[usado];
   const custo   = Math.round((entrada * preco[0] + saida * preco[1]) / 1e6 * 1e5) / 1e5;
   return { dados: JSON.parse(texto.text), uso: { entrada, saida, custo } };
 }
