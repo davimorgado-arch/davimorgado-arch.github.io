@@ -290,11 +290,12 @@ function atribuirFalas_(falas, contexto) {
     additionalProperties: false,
   };
   const modelo = Array.isArray(contexto) ? CONFIG.MODELO_AO_VIVO : CONFIG.MODELO;
-  const dados = chamarClaudeJson_(system, user, schema, props, modelo).dados;
+  const { dados, uso } = chamarClaudeJson_(system, user, schema, props, modelo);
   const porBloco = Object.fromEntries(dados.falas.map(f => [f.i, f.turnos]));
   return {
     falas: falas.map((f, i) => ({ i, turnos: conferirTurnos_(String(f), porBloco[i]) })),
     observacao: dados.observacao,
+    uso,
   };
 }
 
