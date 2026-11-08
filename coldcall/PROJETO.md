@@ -403,7 +403,7 @@ Ideia: assistente que ouve a ligação real e orienta o front por texto. Esta et
 
 - **Hospedagem:** https://copiloto.dbmvault.online (Hostinger, `public_html/copiloto/index.html`). Fica fora do GitHub Pages; o arquivo-fonte é local, em `coldcall/copiloto-teste.html`, ignorado pelo git. Depois de editar, reenvie como `index.html` no Gerenciador de Arquivos.
 - **Página:** dois modos:
-  - **Celular no viva-voz:** uma conexão de transcrição, só microfone. O Scribe em tempo real não documenta separação de vozes, então o botão "Claude: quem falou?" reparte cada bloco em turnos depois (`doPost`, `atribuir_falas`), e o backend devolve o bloco como incerto se o Claude alterar o texto. O corte por silêncio é de 0,4 s.
+  - **Celular no viva-voz:** uma conexão de transcrição, só microfone. O Scribe em tempo real não documenta separação de vozes, então o botão "Claude: quem falou?" reparte cada bloco em turnos (`doPost`, `atribuir_falas`). No viva-voz, a página faz isso sozinha a cada fala nova, uma análise por vez, enviando os últimos 16 turnos como contexto; o botão refaz a ligação inteira ao final, e o backend devolve o bloco como incerto se o Claude alterar o texto. O corte por silêncio é de 0,4 s.
   - **Ligação pelo computador:** duas conexões, microfone = front e áudio do sistema (`getDisplayMedia`) = lead. A separação é exata.
 - **Transcrição:** ElevenLabs `scribe_v2_realtime` por WebSocket, com token de uso único gerado no Apps Script (`?acao=token_stt`).
 - **Acesso:** aberto, sem código (decisão do Davi em 08/11/2026). Quem tiver o link, ou a URL do app da web, gasta créditos da ElevenLabs e da Anthropic.
