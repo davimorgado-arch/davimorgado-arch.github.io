@@ -401,7 +401,8 @@ Com o **Claude in Chrome** disponível, as tarefas de navegador são:
 
 Ideia: assistente que ouve a ligação real e orienta o front por texto. Esta etapa só valida o áudio; ainda não há dicas.
 
-- **Página:** `coldcall/copiloto-teste.html`, com dois modos:
+- **Hospedagem:** https://copiloto.dbmvault.online (Hostinger, `public_html/copiloto/index.html`). Fica fora do GitHub Pages; o arquivo-fonte é local, em `coldcall/copiloto-teste.html`, ignorado pelo git. Depois de editar, reenvie como `index.html` no Gerenciador de Arquivos.
+- **Página:** dois modos:
   - **Celular no viva-voz:** uma conexão de transcrição, só microfone. O Scribe em tempo real não documenta separação de vozes, então o botão "Claude: quem falou?" classifica as falas depois (`doPost`, `atribuir_falas`).
   - **Ligação pelo computador:** duas conexões, microfone = front e áudio do sistema (`getDisplayMedia`) = lead. A separação é exata.
 - **Transcrição:** ElevenLabs `scribe_v2_realtime` por WebSocket, com token de uso único gerado no Apps Script (`?acao=token_stt`).
