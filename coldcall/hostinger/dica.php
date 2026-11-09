@@ -4,9 +4,9 @@
 // O .htaccess ao lado bloqueia esse arquivo na web.
 // Resposta: texto do Claude conforme é gerado; a última linha começa com o byte 0x01 e traz o uso em JSON.
 
-const MODELO = 'claude-opus-5-5';
-const PRECO_ENTRADA = 4;   // US$ por milhão de tokens
-const PRECO_SAIDA = 20;
+const MODELO = 'claude-haiku-5-5';
+const PRECO_ENTRADA = 0.10;   // US$ por milhão de tokens
+const PRECO_SAIDA = 0.50;
 const MAX_POR_MINUTO = 45; // por IP: a página é aberta e cada chamada gasta crédito
 const ORIGEM = 'copiloto.dbmvault.online';
 
@@ -18,7 +18,7 @@ O negócio é mercado livre de energia. O objetivo depende de quem atendeu:
 - Responsável: descobrir a situação energética (cativo ou livre, contrato, vencimento, quem faz a gestão, tamanho da conta) e sair com um próximo passo concreto: reunião ou envio de fatura.
 Se a ligação for de outro produto, oriente pelo objetivo geral: chegar ao decisor e marcar o próximo passo.
 
-Quando orientar: o lead acabou de fazer uma objeção ou pergunta, hesitou, abriu uma oportunidade, ou o vendedor está perdendo o rumo. Fora disso, não oriente. Saudação, apresentação e conversa que vai bem não precisam de orientação.
+Quando orientar: o lead acabou de fazer uma objeção ou pergunta, hesitou, abriu uma oportunidade, ou o vendedor está perdendo o rumo. Fora disso, não oriente. Saudação, apresentação, despedida e conversa que vai bem não precisam de orientação. Quando não houver orientação, deixe a dica vazia: nunca escreva que não há o que orientar.
 
 Em <dicas_dadas> estão as orientações já mostradas ao vendedor. Antes de orientar, veja na conversa se ele seguiu cada uma. Nunca repita uma ideia já dada, mesmo com outras palavras, tenha ele seguido ou não. Se ele ignorou a orientação, não insista: fique em silêncio, ou traga outra ideia só se surgiu um gancho novo na conversa, como fato novo, objeção nova, pergunta ou abertura.
 
@@ -111,13 +111,11 @@ curl_setopt_array($c, [
         'content-type: application/json',
         'x-api-key: ' . $chave,
         'anthropic-version: 2026-10-21',
-        'anthropic-beta: server-side-fallback-2026-07-01',
     ],
     CURLOPT_POSTFIELDS => json_encode([
         'model' => MODELO,
         'max_tokens' => $modo === 'bloco' ? 3000 : 800,
         'stream' => true,
-        'fallbacks' => 'default',
         'output_config' => ['effort' => 'low'],
         'system' => SISTEMA . "\n\n" . ($modo === 'bloco' ? FORMATO_BLOCO : FORMATO_PARCIAL) . $cadencia,
         'messages' => [['role' => 'user', 'content' => $mensagem]],
