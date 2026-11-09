@@ -1,6 +1,7 @@
 <?php
 // Copiloto: orientação ao vivo com streaming. Publicado em copiloto.dbmvault.online/dica.php.
-// A chave da Anthropic fica fora da pasta pública, em ../../copiloto-chave.php: <?php return 'sua-chave';
+// A chave da Anthropic fica em copiloto-chave.php, na mesma pasta: <?php return 'sua-chave';
+// O .htaccess ao lado bloqueia esse arquivo na web.
 // Resposta: texto do Claude conforme é gerado; a última linha começa com o byte 0x01 e traz o uso em JSON.
 
 const MODELO = 'claude-opus-5-5';
@@ -69,7 +70,7 @@ $novo = is_array($pedido) ? trim((string)($pedido['novo'] ?? '')) : '';
 if ($novo === '') falhar(400, 'Sem texto');
 $modo = ($pedido['modo'] ?? '') === 'bloco' ? 'bloco' : 'parcial';
 
-$chave = @include dirname(__DIR__, 2) . '/copiloto-chave.php';
+$chave = @include __DIR__ . '/copiloto-chave.php';
 if (!is_string($chave) || $chave === '') falhar(503, 'Chave da API não configurada');
 
 $linhas = [];
