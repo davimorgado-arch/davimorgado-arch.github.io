@@ -410,4 +410,4 @@ Ideia: assistente que ouve a ligação real e orienta o front por texto. Esta et
 - **Áudio do sistema:** no Windows funciona com Tela inteira. No Mac, aba do Chrome; Tela inteira com áudio depende de Chrome 141+ e macOS 14.2+ (não confirmado em documentação oficial).
 - **Custo:** cada análise devolve tokens e custo do Claude (`uso`), e a página soma por ligação. A transcrição da ElevenLabs é cobrada à parte, por tempo.
 - **Nada é salvo:** a transcrição fica só na página. A ElevenLabs mantém o registro padrão da sessão (`enable_logging`; desligar exige plano enterprise).
-- **Latência:** o Apps Script serve para o teste, mas o copiloto com dicas ao vivo vai precisar de um servidor mais rápido (ex.: Cloudflare Worker).
+- **Orientação ao vivo:** `coldcall/hostinger/dica.php`, publicado ao lado do `index.html`, chama o Claude com streaming. Cada fala fechada gera orientação e separa os turnos na mesma chamada; enquanto a pessoa fala, o texto parcial dispara só a orientação, e só se parecer objeção ou pergunta. A chave fica fora da pasta pública, em `copiloto-chave.php`. Sem ela, a página volta a separar as falas pelo Apps Script, sem orientação.
