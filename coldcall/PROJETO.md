@@ -89,6 +89,7 @@ O front escolhe o desafio que quiser, em qualquer ordem. Novos desafios (3, 4…
 - **URLs depois de publicadas** (merge no `main`):
   - `https://davimorgado-arch.github.io/coldcall/`
   - `https://davimorgado-arch.github.io/coldcall/ranking.html`
+  - `https://davimorgado-arch.github.io/coldcall/painel.html`: ranking e custos em duas abas (`#ranking`, `#custos`)
 - **Parâmetros de URL para teste:**
   - `index.html?agent=...&api=...` sobrescreve o agente e a URL do Apps Script;
   - `ranking.html?api=...` sobrescreve a URL do Apps Script.
