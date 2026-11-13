@@ -82,7 +82,7 @@ O front escolhe o desafio que quiser, em qualquer ordem. Novos desafios (3, 4…
 | Arquivo | O que é |
 |---|---|
 | `coldcall/index.html` | Tela do front: nome, aceite de gravação, um card por desafio, ligação, tela final |
-| `coldcall/ranking.html` | Pódio com revelação: 4º em diante → 3º → 2º → 1º. Botão ou barra de espaço. Rufar de tambor e confete |
+| `coldcall/ranking.html` | Pódio com revelação: 4º em diante → 3º → 2º → 1º. Depois do 1º lugar aparece o ranking completo (todas as posições, pontos, ligações, ✔, ★ e média por ligação). Botão ou barra de espaço. Rufar de tambor e confete |
 | `coldcall/apps-script/Codigo.gs` | Código para colar no Apps Script da planilha |
 | `coldcall/PROJETO.md` | Este documento |
 

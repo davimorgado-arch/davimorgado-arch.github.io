@@ -72,6 +72,21 @@
   .row .p { font-weight:700; color:var(--accent); min-width:70px; text-align:right; }
   .err { color:#FCA5A5; }
 
+  /* Ranking completo: aparece depois de revelar o 1º lugar */
+  .full { max-width:760px; margin:40px auto 0; display:none; opacity:0; transform:translateY(16px); transition:opacity .8s, transform .8s; }
+  .full.shown { display:block; }
+  .full.in { opacity:1; transform:none; }
+  .full h2 { font-size:20px; margin:0 0 12px; }
+  .full .tab { background:var(--card); border:1px solid var(--line); border-radius:16px; overflow-x:auto; }
+  .full table { width:100%; border-collapse:collapse; font-size:15px; font-variant-numeric:tabular-nums; text-align:right; }
+  .full th, .full td { padding:12px 14px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  .full th { color:var(--muted); font-weight:500; font-size:12px; }
+  .full tr:last-child td { border-bottom:0; }
+  .full td.pos, .full th.pos { text-align:center; width:56px; font-weight:800; }
+  .full td.nome, .full th.nome { text-align:left; font-weight:600; white-space:normal; }
+  .full td.pts { font-weight:800; color:var(--accent); }
+  .full tr.top td { background:rgba(245,197,66,.06); }
+
   /* Confete */
   .confetti { position:fixed; top:-20px; width:10px; height:16px; border-radius:2px; pointer-events:none; z-index:10; animation:fall linear forwards; }
   @keyframes fall { to { transform:translateY(110vh) rotate(720deg); } }
@@ -93,6 +108,7 @@
   <button id="reload" class="ghost">Atualizar dados e recomeçar</button>
 
   <div id="rest" class="rest"></div>
+  <div id="full" class="full"></div>
 </div>
 
 <script>
@@ -138,6 +154,20 @@ function reset() {
       <div class="stats">${r.ligacoes} ligação(ões) · ${r.objetivos} ✔ · ${r.secretos} ★</div>` : "";
   });
   $("rest").classList.remove("shown");
+  $("full").classList.remove("shown", "in");
+  $("full").innerHTML = ranking.length ? `<h2>Ranking completo</h2>
+    <div class="tab"><table>
+      <thead><tr><th class="pos">Pos.</th><th class="nome">Participante</th><th>Pontos</th><th>Ligações</th><th>Objetivos ✔</th><th>Secretos ★</th><th>Média por ligação</th></tr></thead>
+      <tbody>${ranking.map((r, i) => `<tr class="${i < 3 ? "top" : ""}">
+        <td class="pos">${MEDALS[i + 1] || (i + 1) + "º"}</td>
+        <td class="nome">${esc(r.vendedor)}</td>
+        <td class="pts">${r.pontos}</td>
+        <td>${r.ligacoes}</td>
+        <td>${r.objetivos}</td>
+        <td>${r.secretos}</td>
+        <td>${r.ligacoes ? (r.pontos / r.ligacoes).toFixed(1).replace(".", ",") : "—"}</td>
+      </tr>`).join("")}</tbody>
+    </table></div>` : "";
   $("rest").innerHTML = ranking.length > 3 ? "<h2>Demais colocados</h2>" + ranking.slice(3).map((r, i) => `
     <div class="row">
       <span class="pos">${i + 4}º</span>
@@ -181,8 +211,20 @@ async function revealNext() {
     cymbal();
     if (step === 1) confetti(220);
     else if (step === 2) confetti(60);
+    if (step === 1) mostrarCompleto();
   }
   busy = false; updateButton();
+}
+
+// Depois do 1º lugar, a lista de "demais colocados" dá lugar ao ranking completo
+async function mostrarCompleto() {
+  if (!ranking.length) return;
+  await wait(1800);
+  $("rest").classList.remove("shown");
+  $("full").classList.add("shown");
+  await wait(30);
+  $("full").classList.add("in");
+  $("full").scrollIntoView({ behavior:"smooth", block:"start" });
 }
 
 // ===== Efeitos sonoros (Web Audio, sem arquivos externos) =====
