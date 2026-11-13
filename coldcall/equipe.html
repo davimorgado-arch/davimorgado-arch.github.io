@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Equipe · Cold Call</title>
+<style>
+  :root {
+    --bg:#0D1015; --card:#1B2027; --text:#F2F4F7; --muted:#9AA4B2; --line:#2A313B;
+    --accent:#60A5FA; --green:#22C55E; --amber:#F59E0B; --red:#EF4444;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; min-height:100vh; color:var(--text); overflow-x:hidden; padding:28px 16px 40px;
+    background:radial-gradient(ellipse at 50% 0%, #1E2A44 0%, var(--bg) 60%);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  .wrap { max-width:900px; margin:0 auto; }
+  h1 { font-size:clamp(26px, 4vw, 38px); margin:0; letter-spacing:-.5px; }
+  .sub { color:var(--muted); margin:6px 0 24px; font-size:14px; }
+  .sub .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--green); margin-right:6px; animation:pisca 2s infinite; }
+  @keyframes pisca { 50% { opacity:.3; } }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px; }
+  .lbl { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.6px; margin:0 0 8px; }
+  .big { font-size:32px; font-weight:800; margin:0; font-variant-numeric:tabular-nums; }
+  .err { color:#FCA5A5; }
+  .tabela { margin-top:14px; overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:15px; font-variant-numeric:tabular-nums; }
+  th, td { padding:11px 6px; text-align:right; border-bottom:1px solid var(--line); vertical-align:middle; }
+  th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align:left; }
+  th { color:var(--muted); font-weight:500; font-size:12px; }
+  tr:last-child td { border-bottom:0; }
+  .nome { font-weight:600; }
+  .estado { display:inline-flex; align-items:center; gap:8px; white-space:nowrap; }
+  .estado i { width:10px; height:10px; border-radius:50%; flex:none; background:#4B5563; }
+  .em_ligacao i { background:var(--green); box-shadow:0 0 0 4px rgba(34,197,94,.18); animation:pisca 1.6s infinite; }
+  .chamando i { background:var(--amber); animation:pisca .8s infinite; }
+  .parado i { background:var(--accent); }
+  .offline { color:var(--muted); }
+  .caso { display:block; color:var(--muted); font-size:12px; margin-top:3px; white-space:normal; }
+  .vazio { color:var(--muted); text-align:center !important; padding:28px 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Equipe ao vivo</h1>
+  <p class="sub" id="sub">Carregando…</p>
+
+  <div class="grid">
+    <div class="card"><p class="lbl">Em ligação agora</p><p class="big" id="k-ligacao">—</p></div>
+    <div class="card"><p class="lbl">Na página, parados</p><p class="big" id="k-parados">—</p></div>
+    <div class="card"><p class="lbl">Ligações feitas</p><p class="big" id="k-ligacoes">—</p></div>
+    <div class="card"><p class="lbl">Minutos no total</p><p class="big" id="k-minutos">—</p></div>
+  </div>
+
+  <div class="card tabela">
+    <table>
+      <thead><tr><th>Participante</th><th>Agora</th><th>Ligações</th><th>Minutos</th></tr></thead>
+      <tbody id="linhas"><tr><td colspan="4" class="vazio">Carregando…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const API_URL = new URLSearchParams(location.search).get("api") || "https://script.google.com/macros/s/AKfycbwXoiuekCrxQAZncSYzJbp2c8p8C-Ik3JDUL-gXJ4kDrZW3xqZwqAgCqnZhoVBAVEQ/exec";
+const ATUALIZA_MS = 5000;
+const $ = id => document.getElementById(id);
+const ORDEM = { em_ligacao:0, chamando:1, parado:2, offline:3 };
+let dados = null, diferenca = 0; // relógio do servidor menos o do navegador
+
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+const relogio = ms => {
+  const s = Math.max(0, Math.floor(ms / 1000)), m = Math.floor(s / 60), h = Math.floor(m / 60);
+  return h ? `${h}h${String(m % 60).padStart(2, "0")}` : `${String(m).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+};
+const ha = ms => {
+  const m = Math.floor(ms / 60000);
+  return m < 1 ? "agora" : m < 60 ? `há ${m} min` : `há ${Math.floor(m / 60)} h`;
+};
+
+function estadoHtml(p, agora) {
+  const tempo = agora - p.desde;
+  if (p.estado === "em_ligacao") return `<span class="estado em_ligacao"><i></i>Em ligação · ${relogio(tempo)}</span>${p.caso ? `<span class="caso">${esc(p.caso)}</span>` : ""}`;
+  if (p.estado === "chamando") return `<span class="estado chamando"><i></i>Chamando…</span>${p.caso ? `<span class="caso">${esc(p.caso)}</span>` : ""}`;
+  if (p.estado === "parado") return `<span class="estado parado"><i></i>Parado · ${relogio(tempo)}</span>`;
+  return `<span class="estado offline"><i></i>Fora${p.desde ? ` · visto ${ha(agora - p.visto)}` : ""}</span>`;
+}
+
+function desenhar() {
+  if (!dados) return;
+  const agora = Date.now() + diferenca;
+  const lista = dados.equipe.slice().sort((a, b) =>
+    (ORDEM[a.estado] ?? 9) - (ORDEM[b.estado] ?? 9) || b.ligacoes - a.ligacoes || a.vendedor.localeCompare(b.vendedor, "pt-BR"));
+  const conta = e => lista.filter(p => p.estado === e).length;
+  $("k-ligacao").textContent = conta("em_ligacao") + conta("chamando");
+  $("k-parados").textContent = conta("parado");
+  $("k-ligacoes").textContent = lista.reduce((s, p) => s + p.ligacoes, 0).toLocaleString("pt-BR");
+  $("k-minutos").textContent = Math.round(lista.reduce((s, p) => s + p.segundos, 0) / 60).toLocaleString("pt-BR");
+  $("linhas").innerHTML = lista.length ? lista.map(p => `<tr>
+      <td class="nome">${esc(p.vendedor)}</td>
+      <td>${estadoHtml(p, agora)}</td>
+      <td>${p.ligacoes}</td>
+      <td>${Math.round(p.segundos / 60)}</td>
+    </tr>`).join("") : `<tr><td colspan="4" class="vazio">Ninguém entrou no simulador ainda.</td></tr>`;
+}
+
+async function carregar() {
+  try {
+    const ini = Date.now();
+    const r = await (await fetch(`${API_URL}?acao=equipe`, { cache:"no-store" })).json();
+    if (r.erro) throw new Error(r.erro);
+    diferenca = r.agora - Math.round((ini + Date.now()) / 2);
+    dados = r;
+    desenhar();
+    $("sub").innerHTML = `<span class="dot"></span>Ao vivo · atualizado às ${new Date().toLocaleTimeString("pt-BR")} · ligações e minutos entram cerca de 1 min depois de cada ligação`;
+  } catch (e) {
+    $("sub").innerHTML = `<span class="err">Não foi possível atualizar: ${esc(e.message)}</span>`;
+  }
+}
+
+carregar();
+setInterval(carregar, ATUALIZA_MS);
+setInterval(desenhar, 1000); // os cronômetros andam entre uma atualização e outra
+</script>
+</body>
+</html>

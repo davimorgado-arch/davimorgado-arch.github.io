@@ -169,6 +169,7 @@ function reprocessarErros() {
 //   ?acao=ranking                → ranking por vendedor (página do pódio)
 //   ?acao=resultado&conv=ID      → % de informação extraída numa ligação (avalia na hora se preciso)
 //   ?acao=progresso&vendedor=X   → casos vencidos, % da última ligação e dica de cada caso
+//   ?acao=equipe                 → quem está em ligação ou parado agora, ligações e minutos por vendedor
 //   ?acao=token_stt&n=1|2       → tokens de uso único da transcrição em tempo real (copiloto)
 //   sem parâmetro                → desafios e bots ativos, só campos públicos (página do simulador)
 function doGet(e) {
@@ -186,6 +187,10 @@ function doGet(e) {
   if (acao === 'custos') {
     try { return json_(custos_()); }
     catch (err) { console.error('custos: ' + err.message); return json_({ erro: err.message }); }
+  }
+  if (acao === 'equipe') {
+    try { return json_(equipe_()); }
+    catch (err) { console.error('equipe: ' + err.message); return json_({ erro: err.message }); }
   }
   if (acao === 'progresso') {
     const { vencidos, ultimas, dicas, falhas } = progresso_(abrirPlanilha_(), p.vendedor);
@@ -211,11 +216,64 @@ function doPost(e) {
   try {
     const corpo = JSON.parse(e.postData.contents);
     if (corpo.acao === 'atribuir_falas') return json_(atribuirFalas_(corpo.falas, corpo.contexto));
+    if (corpo.acao === 'presenca') return json_(registrarPresenca_(corpo));
     return json_({ erro: 'ação desconhecida' });
   } catch (err) {
     console.error('doPost: ' + err.message);
     return json_({ erro: err.message });
   }
+}
+
+// ─── PRESENÇA (aba Equipe do painel) ─────────────────────────
+// O simulador avisa o estado de cada vendedor: parado (página aberta), chamando, em_ligacao ou saiu.
+// Fica no cache do script (6 h); sem aviso por 75 s, o vendedor aparece como fora.
+const PRESENCA_TTL_MS = 75000;
+const ESTADOS_PRESENCA = ['parado', 'chamando', 'em_ligacao', 'saiu'];
+
+function registrarPresenca_(c) {
+  const nome = String(c.vendedor || '').trim().slice(0, 40);
+  if (!nome) return { ok: false };
+  const estado = ESTADOS_PRESENCA.includes(c.estado) ? c.estado : 'parado';
+  // Trava do documento: a do script é usada pelo gatilho de 1 minuto, que desistiria da rodada
+  const lock = LockService.getDocumentLock() || LockService.getScriptLock();
+  if (!lock.tryLock(4000)) return { ok: false };
+  try {
+    const cache = CacheService.getScriptCache();
+    const mapa  = JSON.parse(cache.get('presenca') || '{}');
+    const k = normNome_(nome), agora = Date.now(), ant = mapa[k];
+    mapa[k] = {
+      nome, estado, caso: String(c.caso || '').slice(0, 80),
+      desde: ant && ant.estado === estado ? ant.desde : agora,
+      visto: agora,
+    };
+    Object.keys(mapa).forEach(x => { if (agora - mapa[x].visto > 6 * 3600e3) delete mapa[x]; });
+    cache.put('presenca', JSON.stringify(mapa), 21600);
+  } finally {
+    lock.releaseLock();
+  }
+  return { ok: true };
+}
+
+// Junta a presença ao vivo com as ligações já registradas na planilha
+function equipe_() {
+  const mapa = JSON.parse(CacheService.getScriptCache().get('presenca') || '{}');
+  const agora = Date.now(), por = {};
+  linhasLigacoes_(abrirPlanilha_()).filter(r => String(r[COL.vendedor] || '').trim()).forEach(r => {
+    const k = normNome_(r[COL.vendedor]);
+    const p = por[k] = por[k] || { vendedor: String(r[COL.vendedor]).trim(), ligacoes: 0, segundos: 0 };
+    p.ligacoes++;
+    p.segundos += Number(r[COL.duracao_s]) || 0;
+  });
+  Object.keys(mapa).forEach(k => {
+    const m = mapa[k];
+    const p = por[k] = por[k] || { vendedor: m.nome, ligacoes: 0, segundos: 0 };
+    const online = m.estado !== 'saiu' && agora - m.visto < PRESENCA_TTL_MS;
+    Object.assign(p, { estado: online ? m.estado : 'offline', caso: online ? m.caso : '', desde: m.desde, visto: m.visto });
+  });
+  return {
+    agora,
+    equipe: Object.values(por).map(p => Object.assign({ estado: 'offline', caso: '', desde: 0, visto: 0 }, p)),
+  };
 }
 
 // ─── COPILOTO (teste de áudio: coldcall/copiloto-teste.html) ─

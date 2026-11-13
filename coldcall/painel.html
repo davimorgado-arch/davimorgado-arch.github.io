@@ -22,12 +22,14 @@
 <nav role="tablist">
   <button role="tab" id="aba-ranking" aria-controls="ranking" data-aba="ranking">Ranking</button>
   <button role="tab" id="aba-custos" aria-controls="custos" data-aba="custos">Custos</button>
+  <button role="tab" id="aba-equipe" aria-controls="equipe" data-aba="equipe">Equipe</button>
 </nav>
-<!-- As duas páginas ficam carregadas e se atualizando; a aba só escolhe qual aparece -->
+<!-- As páginas ficam carregadas e se atualizando; a aba só escolhe qual aparece -->
 <iframe id="ranking" src="ranking.html" title="Ranking" role="tabpanel"></iframe>
 <iframe id="custos" src="custos.html" title="Custos" role="tabpanel" hidden></iframe>
+<iframe id="equipe" src="equipe.html" title="Equipe" role="tabpanel" hidden></iframe>
 <script>
-const abas = ["ranking", "custos"];
+const abas = ["ranking", "custos", "equipe"];
 function mostrar(nome) {
   if (!abas.includes(nome)) nome = "ranking";
   abas.forEach(a => {

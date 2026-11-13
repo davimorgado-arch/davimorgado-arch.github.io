@@ -89,7 +89,8 @@ O front escolhe o desafio que quiser, em qualquer ordem. Novos desafios (3, 4…
 - **URLs depois de publicadas** (merge no `main`):
   - `https://davimorgado-arch.github.io/coldcall/`
   - `https://davimorgado-arch.github.io/coldcall/ranking.html`
-  - `https://davimorgado-arch.github.io/coldcall/painel.html`: ranking e custos em duas abas (`#ranking`, `#custos`)
+  - `https://davimorgado-arch.github.io/coldcall/painel.html`: ranking, custos e equipe em abas (`#ranking`, `#custos`, `#equipe`)
+  - Aba **Equipe** (`equipe.html`, `?acao=equipe`): quem está em ligação, chamando, parado ou fora, com ligações e minutos por vendedor. O simulador avisa o estado por `doPost` (`acao: presenca`) ao mudar e a cada 30 s com a página visível; sem aviso por 75 s, aparece como fora. Ligações e minutos vêm da aba Ligacoes, então entram cerca de 1 min depois de cada ligação.
 - **Parâmetros de URL para teste:**
   - `index.html?agent=...&api=...` sobrescreve o agente e a URL do Apps Script;
   - `ranking.html?api=...` sobrescreve a URL do Apps Script.

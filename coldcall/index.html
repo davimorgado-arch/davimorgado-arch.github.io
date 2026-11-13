@@ -205,6 +205,7 @@ const AVAL_TENTATIVAS = 48;               // …por até 4 min
 let desafios = [];             // desafios ativos (aba Desafios)
 let bots = [];                 // bots ativos (aba Bots)
 let atual = null;              // { desafio, bot } da ligação em andamento
+let presenca = { estado:"parado", caso:"", nome:"" }; // o que o painel da equipe mostra deste vendedor
 let conversation = null;       // sessão ativa da ElevenLabs
 let ringer = null;             // controle do toque de chamada
 let ambiente = null;           // som de fundo do lead durante a ligação
@@ -245,8 +246,30 @@ $("name").addEventListener("input", () => {
   dicas = {};
   renderCards();
   clearTimeout(progTimer);
-  progTimer = setTimeout(carregarProgresso, 600);
+  progTimer = setTimeout(() => { carregarProgresso(); avisarPresenca(); }, 600);
 });
+
+// ===== Presença no painel da equipe (painel.html#equipe) =====
+// Avisa o estado ao mudar e a cada 30 s com a página visível; sem aviso por 75 s, o painel mostra "fora"
+function enviarPresenca(vendedor, estado, caso, beacon) {
+  const corpo = JSON.stringify({ acao:"presenca", vendedor, estado, caso });
+  try {
+    if (beacon && navigator.sendBeacon) navigator.sendBeacon(API_URL, new Blob([corpo], { type:"text/plain;charset=utf-8" }));
+    else fetch(API_URL, { method:"POST", headers:{ "Content-Type":"text/plain;charset=utf-8" }, body:corpo, keepalive:true }).catch(() => {});
+  } catch (e) {}
+}
+function avisarPresenca(estado, caso) {
+  if (estado) presenca.estado = estado;
+  if (caso !== undefined) presenca.caso = caso;
+  const n = nome();
+  if (presenca.nome && presenca.nome !== n) enviarPresenca(presenca.nome, "saiu", "");  // trocou de nome
+  presenca.nome = n;
+  if (n) enviarPresenca(n, presenca.estado, presenca.caso);
+}
+setInterval(() => { if (!document.hidden || presenca.estado !== "parado") avisarPresenca(); }, 30000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) avisarPresenca(); });
+window.addEventListener("pagehide", () => { if (presenca.nome) enviarPresenca(presenca.nome, "saiu", "", true); });
+avisarPresenca();
 
 async function carregarProgresso() {
   const n = nome();
@@ -456,6 +479,7 @@ async function call(id) {
   if (!bot || !aberto(bot)) return;
   const desafio = desafioDe(bot);
   atual = { desafio, bot };
+  avisarPresenca("chamando", bot.nome);
 
   // Zera estado da ligação anterior
   lines = []; endReason = ""; muted = false; startedAt = 0; convId = ""; avalToken++;
@@ -510,6 +534,7 @@ function onAnswered() {
   if (ringer) { ringer.stop(); ringer = null; }
   if (endReason || startedAt) return;   // ligação cancelada ou já atendida
   startedAt = Date.now();
+  avisarPresenca("em_ligacao");
   if (atual) ambiente = startAmbiente(String(atual.bot.ambiente || "").trim().toLowerCase());
   $("btn-mute").disabled = false;
   timerId = setInterval(() => {
@@ -527,6 +552,7 @@ async function hangUp() {
 // Monta a tela final
 function finish() {
   if (ringer) { ringer.stop(); ringer = null; }
+  avisarPresenca("parado", "");
   if (ambiente) { ambiente.stop(); ambiente = null; }
   clearInterval(timerId);
   conversation = null;
